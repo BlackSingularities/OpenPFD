@@ -12,43 +12,43 @@ import android.view.MotionEvent
 import android.view.View
 import pl.openpfd.render.AirbusPfd
 import pl.openpfd.render.BoeingPfd
+import pl.openpfd.render.CessnaPanel
 import pl.openpfd.render.GarminPfd
 import pl.openpfd.render.PfdRenderer
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** Rysuje kwadratowy PFD na środku ekranu oraz pasek stanu czujników poza nim. */
+/**
+ * Rysuje wybrany przyrząd: PFD-y w kwadracie na środku ekranu, panel Cessny na całym ekranie.
+ */
 @SuppressLint("ViewConstructor")
 class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
-    enum class Style { AIRBUS, BOEING, GARMIN }
+    enum class Style(val label: String) {
+        AIRBUS("A320"), BOEING("737"), GARMIN("G1000"), CESSNA("C172")
+    }
 
     var style = Style.AIRBUS
-    var onMenu: (() -> Unit)? = null
+    /** Dotknięcie poza aktywnymi strefami – pokazanie/ukrycie interfejsu. */
+    var onTapEmpty: (() -> Unit)? = null
     var onCalibrated: (() -> Unit)? = null
 
     private val airbus = AirbusPfd()
     private val boeing = BoeingPfd()
     private val garmin = GarminPfd()
-    private val renderer: PfdRenderer
+    private val cessna = CessnaPanel()
+    private val renderer: PfdRenderer?
         get() = when (style) {
             Style.AIRBUS -> airbus
             Style.BOEING -> boeing
             Style.GARMIN -> garmin
+            Style.CESSNA -> null
         }
 
     private val dp = resources.displayMetrics.density
     private val status = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(150, 150, 150)
-        textSize = 12f * dp
+        color = Color.argb(150, 255, 255, 255)
+        textSize = 11f * dp
         typeface = Typeface.MONOSPACE
-    }
-    private val btn = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(70, 70, 70)
-    }
-    private val btnTxt = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textSize = 22f * dp
-        textAlign = Paint.Align.CENTER
     }
 
     private var size = 0f
@@ -78,71 +78,47 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean = gestures.onTouchEvent(event)
 
-    private fun menuCenter(): Pair<Float, Float> = Pair(width - 30f * dp, 30f * dp)
-
     private fun onTap(x: Float, y: Float) {
-        val (mx, my) = menuCenter()
-        if ((x - mx) * (x - mx) + (y - my) * (y - my) < (34f * dp) * (34f * dp)) {
-            onMenu?.invoke()
-            return
-        }
-        if (size <= 0f) return
-        val vx = (x - ox) / size * 1000f
-        val vy = (y - oy) / size * 1000f
-        if (renderer.baroRect.contains(vx, vy)) {
+        val r = renderer
+        val baroHit = if (r == null) cessna.baroHit(x, y)
+        else size > 0f && r.baroRect.contains((x - ox) / size * 1000f, (y - oy) / size * 1000f)
+        if (baroHit) {
             hub.std = !hub.std
             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-        } else if (x < ox || x > ox + size || y < oy || y > oy + size) {
-            onMenu?.invoke()
+        } else {
+            onTapEmpty?.invoke()
         }
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val d = hub.snapshot()
-        size = min(width, height).toFloat()
-        ox = (width - size) / 2f
-        oy = (height - size) / 2f
-
-        canvas.save()
-        canvas.translate(ox, oy)
-        canvas.scale(size / 1000f, size / 1000f)
-        canvas.clipRect(0f, 0f, 1000f, 1000f)
-        renderer.draw(canvas, d)
-        canvas.restore()
-
-        drawStatus(canvas, d)
+        val r = renderer
+        if (r == null) {
+            cessna.draw(canvas, d, width.toFloat(), height.toFloat())
+        } else {
+            size = min(width, height).toFloat()
+            ox = (width - size) / 2f
+            oy = (height - size) / 2f
+            canvas.save()
+            canvas.translate(ox, oy)
+            canvas.scale(size / 1000f, size / 1000f)
+            canvas.clipRect(0f, 0f, 1000f, 1000f)
+            r.draw(canvas, d)
+            canvas.restore()
+            drawStatus(canvas, d)
+        }
         postInvalidateOnAnimation()
     }
 
+    /** Krótki stan czujników na marginesie poza kwadratem (gdy jest miejsce). */
     private fun drawStatus(c: Canvas, d: FlightData) {
-        val lines = listOf(
-            if (d.gpsFix) "GPS  ±${d.gpsAccuracy.roundToInt()} m  ${d.sats} SAT" else "GPS  SZUKANIE… (${d.sats} SAT)",
-            "QNH  ${d.qnh.roundToInt()} hPa  ${d.qnhSource}" + if (d.std) "  [STD]" else "",
-            "ALT  " + when {
-                !d.altValid -> "BRAK"
-                d.altFromBaro -> "BAROMETR"
-                else -> "GPS (brak barometru)"
-            },
-            "HDG  " + if (d.headingMagnetic) "MAGNETYCZNY" else "WZGLĘDNY",
-            "v" + BuildConfig.VERSION_NAME,
-        )
-        val lh = status.textSize * 1.3f
-        val horizontalMargin = ox > 150f * dp
-        var x = 10f * dp
-        var y = if (horizontalMargin) 24f * dp else 18f * dp
-        if (!horizontalMargin && oy < lines.size * lh + 10f * dp) {
-            // brak miejsca – tylko najważniejsza linia na dole
-            c.drawText(lines[0] + "   " + lines[1], x, height - 8f * dp, status)
-        } else {
-            for (s in lines) {
-                c.drawText(s, x, y, status)
-                y += lh
-            }
+        val gps = if (d.gpsFix) "GPS ±${d.gpsAccuracy.roundToInt()} m · ${d.sats} SAT" else "GPS · szukanie…"
+        val qnh = "QNH ${d.qnh.roundToInt()} · ${d.qnhSource}"
+        val lh = status.textSize * 1.4f
+        if (ox > 140f * dp || oy > lh * 2 + 12f * dp) {
+            c.drawText(gps, 16f * dp, height - 12f * dp - lh, status)
+            c.drawText(qnh, 16f * dp, height - 12f * dp, status)
         }
-        x = 0f
-        val (mx, my) = menuCenter()
-        c.drawCircle(mx, my, 20f * dp, btn)
-        c.drawText("≡", mx + x, my + 8f * dp, btnTxt)
     }
 }

@@ -1,0 +1,345 @@
+package pl.openpfd.render
+
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RadialGradient
+import android.graphics.RectF
+import android.graphics.Shader
+import pl.openpfd.FlightData
+import pl.openpfd.angDiff
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
+
+/** Renderer rysujący na całym ekranie (bez kwadratu). */
+interface FullRenderer {
+    fun draw(c: Canvas, d: FlightData, w: Float, h: Float)
+    fun baroHit(x: Float, y: Float): Boolean
+}
+
+/**
+ * Cessna 172 – klasyczny „six-pack” analogowych zegarów:
+ * prędkościomierz, sztuczny horyzont, wysokościomierz / zakrętomierz, żyrobusola, wariometr.
+ * Każdy zegar rysowany jest w układzie o promieniu 100.
+ */
+class CessnaPanel : FullRenderer {
+    private val p = Pen()
+    private val baro = RectF()
+
+    private var lastHdg = Float.NaN
+    private var lastT = 0L
+    private var turnRate = 0f
+
+    private companion object {
+        const val FACE = 0xFF0E0E0F.toInt()
+        const val BEZEL = 0xFF050505.toInt()
+        const val RIM = 0xFF3C3E42.toInt()
+        const val ORANGE = 0xFFFF8A00.toInt()
+        const val GREEN = 0xFF1FA82E.toInt()
+        const val YELLOW = 0xFFF2D21B.toInt()
+        const val RED = 0xFFE02020.toInt()
+        const val SKY = 0xFF2F7FCF.toInt()
+        const val EARTH = 0xFF6E4320.toInt()
+        const val LABEL = 0xFFD8D8D8.toInt()
+    }
+
+    private val panelPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var lastW = 0f
+    private var lastH = 0f
+    private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val oval = RectF()
+
+    override fun baroHit(x: Float, y: Float) = baro.contains(x, y)
+
+    override fun draw(c: Canvas, d: FlightData, w: Float, h: Float) {
+        updateTurnRate(d)
+        if (w != lastW || h != lastH) {
+            lastW = w
+            lastH = h
+            panelPaint.shader = RadialGradient(w / 2, h / 2, maxOf(w, h) * 0.75f,
+                0xFF34373B.toInt(), 0xFF1A1B1D.toInt(), Shader.TileMode.CLAMP)
+        }
+        c.drawRect(0f, 0f, w, h, panelPaint)
+
+        val cols = if (w >= h) 3 else 2
+        val rows = 6 / cols
+        val cw = w / cols
+        val ch = h / rows
+        val r = min(cw, ch) * 0.46f
+        for (i in 0 until 6) {
+            val cx = cw * (i % cols) + cw / 2
+            val cy = ch * (i / cols) + ch / 2
+            c.save()
+            c.translate(cx, cy)
+            c.scale(r / 100f, r / 100f)
+            bezelBack(c)
+            when (i) {
+                0 -> asi(c, d)
+                1 -> ai(c, d)
+                2 -> {
+                    alt(c, d)
+                    val s = r / 100f
+                    baro.set(cx + 30 * s, cy - 14 * s, cx + 86 * s, cy + 14 * s)
+                }
+                3 -> tc(c, d)
+                4 -> hi(c, d)
+                5 -> vsi(c, d)
+            }
+            bezelFront(c)
+            c.restore()
+            screws(c, cx, cy, r)
+        }
+    }
+
+    private fun updateTurnRate(d: FlightData) {
+        val now = System.nanoTime()
+        if (!lastHdg.isNaN() && lastT != 0L) {
+            val dt = (now - lastT) / 1e9f
+            if (dt in 0.001f..1f) {
+                val rate = angDiff(d.heading, lastHdg) / dt
+                turnRate += dt / (0.8f + dt) * (rate - turnRate)
+            }
+        }
+        lastHdg = d.heading
+        lastT = now
+    }
+
+    // ---------------------------------------------------------------- obudowa
+    private fun bezelBack(c: Canvas) {
+        p.circle(c, 0f, 0f, 104f, RIM)
+        p.circle(c, 0f, 0f, 99f, BEZEL)
+        p.circle(c, 0f, 0f, 93f, FACE)
+    }
+
+    private fun bezelFront(c: Canvas) {
+        p.circle(c, 0f, 0f, 96f, 0xFF000000.toInt(), 6f)
+        // odblask szkła
+        arc.shader = null
+        arc.color = 0x22FFFFFF
+        arc.strokeWidth = 10f
+        oval.set(-82f, -82f, 82f, 82f)
+        c.drawArc(oval, 200f, 70f, false, arc)
+    }
+
+    private fun screws(c: Canvas, cx: Float, cy: Float, r: Float) {
+        val o = r * 0.95f
+        for ((sx, sy) in listOf(-1f to -1f, 1f to -1f, -1f to 1f, 1f to 1f)) {
+            val x = cx + sx * o
+            val y = cy + sy * o
+            p.circle(c, x, y, r * 0.055f, 0xFF4A4C50.toInt())
+            p.line(c, x - r * 0.04f, y - r * 0.02f, x + r * 0.04f, y + r * 0.02f, 0xFF1A1A1A.toInt(), r * 0.012f)
+        }
+    }
+
+    private fun needle(c: Canvas, angle: Float, len: Float, width: Float, color: Int) {
+        c.save()
+        c.rotate(angle)
+        p.poly(c, color, 0, 0f, -width, 14f, width, 14f, width * 0.5f, -len + 8, 0f, -len, -width * 0.5f, -len + 8)
+        c.restore()
+    }
+
+    private fun hub(c: Canvas) {
+        p.circle(c, 0f, 0f, 8f, 0xFF202020.toInt())
+        p.circle(c, 0f, 0f, 8f, 0xFF606060.toInt(), 1.5f)
+    }
+
+    private fun arcBand(c: Canvas, a1: Float, a2: Float, r: Float, w: Float, color: Int) {
+        arc.color = color
+        arc.strokeWidth = w
+        oval.set(-r, -r, r, r)
+        c.drawArc(oval, a1 - 90f, a2 - a1, false, arc)
+    }
+
+    // ---------------------------------------------------------------- prędkościomierz
+    private fun asiAngle(v: Float) = 20f + v.coerceIn(0f, 200f) * 1.6f
+
+    private fun asi(c: Canvas, d: FlightData) {
+        arcBand(c, asiAngle(33f), asiAngle(85f), 86f, 5f, 0xFFF0F0F0.toInt())
+        arcBand(c, asiAngle(44f), asiAngle(129f), 80f, 7f, GREEN)
+        arcBand(c, asiAngle(129f), asiAngle(163f), 80f, 7f, YELLOW)
+        p.radial(c, 0f, 0f, asiAngle(163f), 70f, 90f, RED, 4f)
+        var v = 40
+        while (v <= 200) {
+            val major = v % 10 == 0
+            p.radial(c, 0f, 0f, asiAngle(v.toFloat()), if (major) 72f else 78f, 90f, Col.WHITE, if (major) 2.5f else 1.5f)
+            if (v % 20 == 0) {
+                val a = Math.toRadians(asiAngle(v.toFloat()).toDouble())
+                p.text(c, v.toString(), (sin(a) * 58).toFloat(), (-cos(a) * 58).toFloat(), 15f, Col.WHITE, bold = true)
+            }
+            v += 5
+        }
+        p.text(c, "AIRSPEED", 0f, -26f, 10f, LABEL)
+        p.text(c, "KNOTS", 0f, 30f, 10f, LABEL)
+        p.text(c, if (d.speedValid) "GPS GS" else "NO GPS", 0f, 46f, 9f, if (d.speedValid) LABEL else ORANGE)
+        needle(c, asiAngle(if (d.speedValid) d.speedKt else 0f), 86f, 3.5f, Col.WHITE)
+        hub(c)
+    }
+
+    // ---------------------------------------------------------------- sztuczny horyzont
+    private fun ai(c: Canvas, d: FlightData) {
+        val k = 2.4f
+        c.save()
+        val clip = android.graphics.Path().apply { addCircle(0f, 0f, 92f, android.graphics.Path.Direction.CW) }
+        c.clipPath(clip)
+        c.rotate(-d.roll)
+        val pitch = d.pitch.coerceIn(-30f, 30f)
+        p.rect(c, -200f, -200f, 200f, pitch * k, SKY)
+        p.rect(c, -200f, pitch * k, 200f, 200f, EARTH)
+        p.line(c, -200f, pitch * k, 200f, pitch * k, Col.WHITE, 2.5f)
+        for (deg in intArrayOf(5, 10, 15, 20)) {
+            val y = pitch * k - deg * k
+            val half = if (deg % 10 == 0) 22f else 12f
+            p.line(c, -half, y, half, y, Col.WHITE, 2f)
+            val y2 = pitch * k + deg * k
+            p.line(c, -half, y2, half, y2, Col.WHITE, 2f)
+        }
+        // skala przechylenia na obrotowej tarczy
+        for (a in intArrayOf(10, 20, 30, 60, 90)) {
+            for (sg in intArrayOf(-1, 1)) {
+                val long = a == 30 || a == 60 || a == 90
+                p.radial(c, 0f, 0f, (sg * a).toFloat(), if (long) 72f else 78f, 92f, Col.WHITE, 2.5f)
+            }
+        }
+        p.poly(c, Col.WHITE, 0, 0f, 0f, -74f, -7f, -90f, 7f, -90f)
+        c.restore()
+        // stałe elementy obudowy
+        p.poly(c, ORANGE, 0, 0f, 0f, -70f, -7f, -58f, 7f, -58f)
+        p.line(c, -56f, 0f, -18f, 0f, ORANGE, 5f)
+        p.line(c, 18f, 0f, 56f, 0f, ORANGE, 5f)
+        p.line(c, -18f, 0f, -10f, 7f, ORANGE, 5f)
+        p.line(c, 18f, 0f, 10f, 7f, ORANGE, 5f)
+        p.circle(c, 0f, 0f, 4f, ORANGE)
+        if (!d.attValid) p.text(c, "GYRO", 0f, 50f, 16f, ORANGE, bold = true)
+    }
+
+    // ---------------------------------------------------------------- wysokościomierz
+    private fun alt(c: Canvas, d: FlightData) {
+        for (i in 0 until 50) {
+            val major = i % 5 == 0
+            p.radial(c, 0f, 0f, i * 7.2f, if (major) 74f else 82f, 90f, Col.WHITE, if (major) 2.5f else 1.5f)
+        }
+        for (n in 0..9) {
+            val a = Math.toRadians(n * 36.0)
+            p.text(c, n.toString(), (sin(a) * 62).toFloat(), (-cos(a) * 62).toFloat(), 18f, Col.WHITE, bold = true)
+        }
+        p.text(c, "ALT", 0f, -30f, 11f, LABEL)
+        p.text(c, "100 FEET", 0f, 32f, 9f, LABEL)
+        // okienko Kollsmana
+        p.rect(c, 30f, -14f, 86f, 14f, 0xFF000000.toInt())
+        p.frame(c, 30f, -14f, 86f, 14f, 0xFF707070.toInt(), 1.5f)
+        val txt = when {
+            d.std -> if (d.inHg) "29.92" else "1013"
+            d.inHg -> String.format(Locale.US, "%.2f", d.qnh * 0.02953f)
+            else -> String.format(Locale.US, "%.0f", d.qnh)
+        }
+        p.text(c, txt, 58f, 0f, 15f, if (d.std) 0xFF33DDFF.toInt() else Col.WHITE)
+        p.text(c, if (d.inHg) "inHg" else "hPa", 58f, 22f, 8f, LABEL)
+        if (!d.altValid) {
+            p.text(c, "NO DATA", 0f, 52f, 11f, ORANGE)
+            hub(c)
+            return
+        }
+        val a = d.altFt.coerceAtLeast(0f)
+        if (!d.altFromBaro) p.text(c, "GPS", 0f, 52f, 10f, ORANGE)
+        // wskazówka 10 000 ft (cienka z trójkątem)
+        c.save()
+        c.rotate((a % 100000f) / 100000f * 360f)
+        p.line(c, 0f, 0f, 0f, -80f, Col.WHITE, 1.5f)
+        p.poly(c, Col.WHITE, 0, 0f, 0f, -92f, -6f, -80f, 6f, -80f)
+        c.restore()
+        needle(c, (a % 10000f) / 10000f * 360f, 50f, 6f, Col.WHITE)
+        needle(c, (a % 1000f) / 1000f * 360f, 84f, 3.5f, Col.WHITE)
+        hub(c)
+    }
+
+    // ---------------------------------------------------------------- zakrętomierz
+    private fun tc(c: Canvas, d: FlightData) {
+        // znaczniki: skrzydła poziomo i zakręt standardowy (3°/s)
+        for (a in floatArrayOf(-90f, 90f)) p.radial(c, 0f, 0f, a, 66f, 88f, Col.WHITE, 4f)
+        for (a in floatArrayOf(-110f, 110f)) p.radial(c, 0f, 0f, a, 66f, 88f, Col.WHITE, 4f)
+        p.text(c, "L", -66f, 40f, 16f, Col.WHITE, bold = true)
+        p.text(c, "R", 66f, 40f, 16f, Col.WHITE, bold = true)
+        p.text(c, "TURN COORDINATOR", 0f, -54f, 8.5f, LABEL)
+        p.text(c, "2 MIN", 0f, 32f, 10f, LABEL)
+        p.text(c, "NO PITCH", 0f, 80f, 7f, LABEL)
+        p.text(c, "INFORMATION", 0f, 87f, 7f, LABEL)
+
+        // libella (kulka)
+        arc.color = 0xFFE8E4D0.toInt()
+        arc.strokeWidth = 16f
+        oval.set(-110f, -150f, 110f, 70f)
+        c.drawArc(oval, 62f, 56f, false, arc)
+        val ballAng = Math.toRadians((90f - (d.slip * 120f).coerceIn(-24f, 24f)).toDouble())
+        val bx = (cos(ballAng) * 110).toFloat()
+        val by = (-40 + sin(ballAng) * 110).toFloat()
+        p.circle(c, bx, by, 7f, 0xFF000000.toInt())
+        p.line(c, -9f, 58f, -9f, 76f, 0xFF000000.toInt(), 2f)
+        p.line(c, 9f, 58f, 9f, 76f, 0xFF000000.toInt(), 2f)
+
+        // samolocik pochylony proporcjonalnie do prędkości kątowej zakrętu
+        val tilt = (turnRate / 3f * 20f).coerceIn(-35f, 35f)
+        c.save()
+        c.rotate(tilt)
+        p.line(c, -62f, 0f, 62f, 0f, Col.WHITE, 6f)
+        p.circle(c, 0f, 0f, 10f, Col.WHITE)
+        p.line(c, 0f, -10f, 0f, -24f, Col.WHITE, 4f)
+        p.line(c, -14f, -18f, 14f, -18f, Col.WHITE, 3f)
+        c.restore()
+    }
+
+    // ---------------------------------------------------------------- żyrobusola
+    private fun hi(c: Canvas, d: FlightData) {
+        val names = mapOf(0 to "N", 30 to "3", 60 to "6", 90 to "E", 120 to "12", 150 to "15",
+            180 to "S", 210 to "21", 240 to "24", 270 to "W", 300 to "30", 330 to "33")
+        for (deg in 0 until 360 step 5) {
+            c.save()
+            c.rotate(deg - d.heading)
+            val ten = deg % 10 == 0
+            p.line(c, 0f, -90f, 0f, if (ten) -76f else -83f, Col.WHITE, if (ten) 2.5f else 1.5f)
+            names[deg]?.let { p.text(c, it, 0f, -62f, if (it.length == 1) 18f else 15f, Col.WHITE, bold = true) }
+            c.restore()
+        }
+        for (a in 0 until 360 step 45) {
+            if (a == 0) continue
+            p.radial(c, 0f, 0f, a.toFloat(), 93f, 98f, ORANGE, 3f)
+        }
+        p.poly(c, ORANGE, 0, 0f, 0f, -91f, -6f, -100f, 6f, -100f)
+        p.line(c, 0f, -88f, 0f, -70f, ORANGE, 3f)
+        // samolot w środku
+        p.line(c, 0f, -34f, 0f, 30f, ORANGE, 6f)
+        p.line(c, -32f, -4f, 32f, -4f, ORANGE, 6f)
+        p.line(c, -13f, 26f, 13f, 26f, ORANGE, 5f)
+        if (d.hasTrack) {
+            c.save()
+            c.rotate(angDiff(d.track, d.heading))
+            p.poly(c, 0xFFFF55FF.toInt(), 0, 0f, 0f, -74f, 5f, -66f, 0f, -58f, -5f, -66f)
+            c.restore()
+        }
+        if (!d.attValid) p.text(c, "OFF", 0f, 50f, 14f, ORANGE, bold = true)
+    }
+
+    // ---------------------------------------------------------------- wariometr
+    private fun vsiAngle(v: Float) = -90f + v.coerceIn(-2000f, 2000f) / 2000f * 170f
+
+    private fun vsi(c: Canvas, d: FlightData) {
+        var v = -2000
+        while (v <= 2000) {
+            val major = v % 500 == 0
+            p.radial(c, 0f, 0f, vsiAngle(v.toFloat()), if (major) 72f else 80f, 90f, Col.WHITE, if (major) 2.5f else 1.5f)
+            if (major && v != 0) {
+                val a = Math.toRadians(vsiAngle(v.toFloat()).toDouble())
+                p.text(c, (abs(v) / 100).toString(), (sin(a) * 58).toFloat(), (-cos(a) * 58).toFloat(), 16f, Col.WHITE, bold = true)
+            }
+            v += 100
+        }
+        p.text(c, "0", -58f, 0f, 16f, Col.WHITE, bold = true)
+        p.text(c, "UP", -30f, -40f, 10f, LABEL)
+        p.text(c, "DOWN", -30f, 40f, 10f, LABEL)
+        p.text(c, "VERTICAL SPEED", 22f, -14f, 8f, LABEL)
+        p.text(c, "100 FT PER MIN", 22f, 14f, 8f, LABEL)
+        needle(c, vsiAngle(if (d.altValid) d.vsFpm else 0f), 86f, 3.5f, Col.WHITE)
+        hub(c)
+    }
+}
