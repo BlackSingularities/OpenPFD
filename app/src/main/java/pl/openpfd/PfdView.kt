@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import android.view.View
 import pl.openpfd.render.AirbusPfd
 import pl.openpfd.render.BoeingPfd
+import pl.openpfd.render.GarminPfd
 import pl.openpfd.render.PfdRenderer
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -19,7 +20,7 @@ import kotlin.math.roundToInt
 /** Rysuje kwadratowy PFD na środku ekranu oraz pasek stanu czujników poza nim. */
 @SuppressLint("ViewConstructor")
 class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
-    enum class Style { AIRBUS, BOEING }
+    enum class Style { AIRBUS, BOEING, GARMIN }
 
     var style = Style.AIRBUS
     var onMenu: (() -> Unit)? = null
@@ -27,7 +28,13 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
 
     private val airbus = AirbusPfd()
     private val boeing = BoeingPfd()
-    private val renderer: PfdRenderer get() = if (style == Style.AIRBUS) airbus else boeing
+    private val garmin = GarminPfd()
+    private val renderer: PfdRenderer
+        get() = when (style) {
+            Style.AIRBUS -> airbus
+            Style.BOEING -> boeing
+            Style.GARMIN -> garmin
+        }
 
     private val dp = resources.displayMetrics.density
     private val status = Paint(Paint.ANTI_ALIAS_FLAG).apply {

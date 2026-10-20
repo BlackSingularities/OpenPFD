@@ -36,7 +36,7 @@ class MainActivity : Activity() {
         hub = SensorHub(this)
         pfd = PfdView(this, hub)
         val prefs = getSharedPreferences("openpfd", MODE_PRIVATE)
-        pfd.style = if (prefs.getString("style", "AIRBUS") == "BOEING") PfdView.Style.BOEING else PfdView.Style.AIRBUS
+        pfd.style = PfdView.Style.entries.firstOrNull { it.name == prefs.getString("style", "AIRBUS") } ?: PfdView.Style.AIRBUS
         pfd.onMenu = { showMenu() }
         pfd.onCalibrated = { Toast.makeText(this, "Skalibrowano poziom", Toast.LENGTH_SHORT).show() }
         setContentView(pfd)
@@ -110,6 +110,7 @@ class MainActivity : Activity() {
         val items = listOf<Pair<String, () -> Unit>>(
             (if (pfd.style == PfdView.Style.AIRBUS) "✓ " else "   ") + "Airbus A320" to { setStyle(PfdView.Style.AIRBUS) },
             (if (pfd.style == PfdView.Style.BOEING) "✓ " else "   ") + "Boeing 737" to { setStyle(PfdView.Style.BOEING) },
+            (if (pfd.style == PfdView.Style.GARMIN) "✓ " else "   ") + "Garmin G1000 (SVT)" to { setStyle(PfdView.Style.GARMIN) },
             "Kalibruj poziom (też: długie przytrzymanie)" to {
                 hub.calibrate(); Toast.makeText(this, "Skalibrowano poziom", Toast.LENGTH_SHORT).show()
             },
