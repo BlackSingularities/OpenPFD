@@ -24,7 +24,32 @@ interface FullRenderer {
  * prędkościomierz, sztuczny horyzont, wysokościomierz / zakrętomierz, żyrobusola, wariometr.
  * Każdy zegar rysowany jest w układzie o promieniu 100.
  */
-class CessnaPanel : FullRenderer {
+class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
+    enum class Kind { CESSNA, HELI, GLIDER }
+
+    private enum class G { ASI, AI, ALT, TC, HI, VSI, VARIO, GMETER }
+
+    private data class Arc(val from: Float, val to: Float, val r: Float, val w: Float, val color: Int)
+    private data class AsiCfg(
+        val unit: String, val factor: Float, val max: Float, val firstLabel: Int, val labelStep: Int,
+        val arcs: List<Arc>, val red: Float,
+    )
+
+    private val gauges = when (kind) {
+        Kind.CESSNA -> listOf(G.ASI, G.AI, G.ALT, G.TC, G.HI, G.VSI)
+        Kind.HELI -> listOf(G.ASI, G.AI, G.ALT, G.GMETER, G.HI, G.VSI)
+        Kind.GLIDER -> listOf(G.ASI, G.VARIO, G.ALT, G.TC, G.HI, G.GMETER)
+    }
+    private val asiCfg = when (kind) {
+        Kind.CESSNA -> AsiCfg("KNOTS", 1f, 200f, 40, 20, listOf(
+            Arc(33f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(44f, 129f, 80f, 7f, GREEN), Arc(129f, 163f, 80f, 7f, YELLOW)), 163f)
+        Kind.HELI -> AsiCfg("KNOTS", 1f, 150f, 20, 20, listOf(Arc(0f, 130f, 80f, 7f, GREEN)), 130f)
+        Kind.GLIDER -> AsiCfg("KM/H", 1.852f, 300f, 40, 20, listOf(
+            Arc(70f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(75f, 180f, 80f, 7f, GREEN), Arc(180f, 280f, 80f, 7f, YELLOW)), 280f)
+    }
+    private val metricAlt = kind == Kind.GLIDER
+    private var gMax = 1f
+    private var gMin = 1f
     private val p = Pen()
     private val baro = RectF()
 
@@ -75,17 +100,19 @@ class CessnaPanel : FullRenderer {
             c.translate(cx, cy)
             c.scale(r / 100f, r / 100f)
             bezelBack(c)
-            when (i) {
-                0 -> asi(c, d)
-                1 -> ai(c, d)
-                2 -> {
+            when (gauges[i]) {
+                G.ASI -> asi(c, d)
+                G.AI -> ai(c, d)
+                G.ALT -> {
                     alt(c, d)
                     val s = r / 100f
                     baro.set(cx + 30 * s, cy - 14 * s, cx + 86 * s, cy + 14 * s)
                 }
-                3 -> tc(c, d)
-                4 -> hi(c, d)
-                5 -> vsi(c, d)
+                G.TC -> tc(c, d)
+                G.HI -> hi(c, d)
+                G.VSI -> vsi(c, d)
+                G.VARIO -> vario(c, d)
+                G.GMETER -> gmeter(c, d)
             }
             bezelFront(c)
             c.restore()
@@ -153,27 +180,30 @@ class CessnaPanel : FullRenderer {
     }
 
     // ---------------------------------------------------------------- prędkościomierz
-    private fun asiAngle(v: Float) = 20f + v.coerceIn(0f, 200f) * 1.6f
+    private fun asiAngle(v: Float) = 20f + v.coerceIn(0f, asiCfg.max) / asiCfg.max * 320f
 
     private fun asi(c: Canvas, d: FlightData) {
-        arcBand(c, asiAngle(33f), asiAngle(85f), 86f, 5f, 0xFFF0F0F0.toInt())
-        arcBand(c, asiAngle(44f), asiAngle(129f), 80f, 7f, GREEN)
-        arcBand(c, asiAngle(129f), asiAngle(163f), 80f, 7f, YELLOW)
-        p.radial(c, 0f, 0f, asiAngle(163f), 70f, 90f, RED, 4f)
-        var v = 40
-        while (v <= 200) {
-            val major = v % 10 == 0
-            p.radial(c, 0f, 0f, asiAngle(v.toFloat()), if (major) 72f else 78f, 90f, Col.WHITE, if (major) 2.5f else 1.5f)
-            if (v % 20 == 0) {
-                val a = Math.toRadians(asiAngle(v.toFloat()).toDouble())
-                p.text(c, v.toString(), (sin(a) * 58).toFloat(), (-cos(a) * 58).toFloat(), 15f, Col.WHITE, bold = true)
+        val cfg = asiCfg
+        for (a in cfg.arcs) arcBand(c, asiAngle(a.from), asiAngle(a.to), a.r, a.w, a.color)
+        p.radial(c, 0f, 0f, asiAngle(cfg.red), 70f, 90f, RED, 4f)
+        val minor = if (cfg.max > 200f) 10 else 5
+        var v = 0
+        while (v <= cfg.max) {
+            val major = v % (minor * 2) == 0
+            if (v >= cfg.firstLabel - minor || kind == Kind.HELI) {
+                p.radial(c, 0f, 0f, asiAngle(v.toFloat()), if (major) 72f else 78f, 90f, Col.WHITE, if (major) 2.5f else 1.5f)
             }
-            v += 5
+            if (v >= cfg.firstLabel && (v - cfg.firstLabel) % cfg.labelStep == 0) {
+                val a = Math.toRadians(asiAngle(v.toFloat()).toDouble())
+                p.text(c, v.toString(), (sin(a) * 58).toFloat(), (-cos(a) * 58).toFloat(),
+                    if (cfg.max > 200f) 12f else 15f, Col.WHITE, bold = true)
+            }
+            v += minor
         }
         p.text(c, "AIRSPEED", 0f, -26f, 10f, LABEL)
-        p.text(c, "KNOTS", 0f, 30f, 10f, LABEL)
+        p.text(c, cfg.unit, 0f, 30f, 10f, LABEL)
         p.text(c, if (d.speedValid) "GPS GS" else "NO GPS", 0f, 46f, 9f, if (d.speedValid) LABEL else ORANGE)
-        needle(c, asiAngle(if (d.speedValid) d.speedKt else 0f), 86f, 3.5f, Col.WHITE)
+        needle(c, asiAngle(if (d.speedValid) d.speedKt * cfg.factor else 0f), 86f, 3.5f, Col.WHITE)
         hub(c)
     }
 
@@ -225,7 +255,7 @@ class CessnaPanel : FullRenderer {
             p.text(c, n.toString(), (sin(a) * 62).toFloat(), (-cos(a) * 62).toFloat(), 18f, Col.WHITE, bold = true)
         }
         p.text(c, "ALT", 0f, -30f, 11f, LABEL)
-        p.text(c, "100 FEET", 0f, 32f, 9f, LABEL)
+        p.text(c, if (metricAlt) "100 METERS" else "100 FEET", 0f, 32f, 9f, LABEL)
         // okienko Kollsmana
         p.rect(c, 30f, -14f, 86f, 14f, 0xFF000000.toInt())
         p.frame(c, 30f, -14f, 86f, 14f, 0xFF707070.toInt(), 1.5f)
@@ -241,7 +271,7 @@ class CessnaPanel : FullRenderer {
             hub(c)
             return
         }
-        val a = d.altFt.coerceAtLeast(0f)
+        val a = (if (metricAlt) d.altFt * 0.3048f else d.altFt).coerceAtLeast(0f)
         if (!d.altFromBaro) p.text(c, "GPS", 0f, 52f, 10f, ORANGE)
         // wskazówka 10 000 ft (cienka z trójkątem)
         c.save()
@@ -318,6 +348,62 @@ class CessnaPanel : FullRenderer {
             c.restore()
         }
         if (!d.attValid) p.text(c, "OFF", 0f, 50f, 14f, ORANGE, bold = true)
+    }
+
+    // ---------------------------------------------------------------- wariometr szybowcowy (TE)
+    private fun varioAngle(v: Float) = -90f + v.coerceIn(-5f, 5f) / 5f * 170f
+
+    private fun vario(c: Canvas, d: FlightData) {
+        var k = -10
+        while (k <= 10) {
+            val v = k * 0.5f
+            val major = k % 2 == 0
+            p.radial(c, 0f, 0f, varioAngle(v), if (major) 70f else 80f, 90f, Col.WHITE, if (major) 3f else 1.5f)
+            if (major && k != 0) {
+                val a = Math.toRadians(varioAngle(v).toDouble())
+                p.text(c, abs(k / 2).toString(), (sin(a) * 56).toFloat(), (-cos(a) * 56).toFloat(), 17f, Col.WHITE, bold = true)
+            }
+            k++
+        }
+        arcBand(c, varioAngle(0f), varioAngle(5f), 86f, 4f, GREEN)
+        arcBand(c, varioAngle(-5f), varioAngle(0f), 86f, 4f, RED)
+        p.text(c, "0", -56f, 0f, 17f, Col.WHITE, bold = true)
+        p.text(c, "VARIO", 22f, -16f, 10f, LABEL)
+        p.text(c, "m/s  TE", 22f, 14f, 9f, LABEL)
+        val te = if (!d.altValid) 0f else {
+            val vs = d.vsFpm * 0.00508f
+            if (d.speedValid) vs + d.speedKt * 0.514444f * (d.speedTrend * 0.0514444f) / 9.81f else vs
+        }
+        p.text(c, String.format(Locale.US, "%+.1f", te), 22f, 44f, 14f, if (te >= 0f) GREEN else ORANGE, bold = true)
+        needle(c, varioAngle(te), 86f, 3.5f, Col.WHITE)
+        hub(c)
+    }
+
+    // ---------------------------------------------------------------- G-metr
+    private fun gAngle(g: Float) = -135f + (g.coerceIn(-1f, 4f) + 1f) / 5f * 270f
+
+    private fun gmeter(c: Canvas, d: FlightData) {
+        gMax = maxOf(gMax, d.gLoad)
+        gMin = minOf(gMin, d.gLoad)
+        arcBand(c, gAngle(-1f), gAngle(3.5f), 82f, 6f, GREEN)
+        arcBand(c, gAngle(3.5f), gAngle(4f), 82f, 6f, RED)
+        var k = -10
+        while (k <= 40) {
+            val g = k / 10f
+            val major = k % 10 == 0
+            if (k % 5 == 0) p.radial(c, 0f, 0f, gAngle(g), if (major) 70f else 78f, 90f, Col.WHITE, if (major) 3f else 1.5f)
+            if (major) {
+                val a = Math.toRadians(gAngle(g).toDouble())
+                p.text(c, (k / 10).toString(), (sin(a) * 56).toFloat(), (-cos(a) * 56).toFloat(), 17f, Col.WHITE, bold = true)
+            }
+            k += 5
+        }
+        p.text(c, "G", 0f, 30f, 18f, LABEL, bold = true)
+        p.text(c, String.format(Locale.US, "%.2f", d.gLoad), 0f, 52f, 13f, Col.WHITE)
+        needle(c, gAngle(gMax), 70f, 2f, ORANGE)
+        needle(c, gAngle(gMin), 70f, 2f, ORANGE)
+        needle(c, gAngle(d.gLoad), 86f, 3.5f, Col.WHITE)
+        hub(c)
     }
 
     // ---------------------------------------------------------------- wariometr

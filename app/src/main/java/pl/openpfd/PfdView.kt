@@ -11,7 +11,9 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import pl.openpfd.render.AirbusPfd
+import pl.openpfd.render.AirbusVariant
 import pl.openpfd.render.BoeingPfd
+import pl.openpfd.render.BoeingVariant
 import pl.openpfd.render.CessnaPanel
 import pl.openpfd.render.GarminPfd
 import pl.openpfd.render.PfdRenderer
@@ -23,8 +25,17 @@ import kotlin.math.roundToInt
  */
 @SuppressLint("ViewConstructor")
 class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
-    enum class Style(val label: String) {
-        AIRBUS("A320"), BOEING("737"), GARMIN("G1000"), CESSNA("C172")
+    enum class Style(val label: String, val alerts: AlertProfile) {
+        AIRBUS("A320", AlertProfile(350f, 115f, false)),
+        A350("A350", AlertProfile(340f, 110f, false)),
+        ATR("ATR 72", AlertProfile(250f, 95f, false)),
+        BOEING("737", AlertProfile(340f, 115f, false)),
+        B787("787", AlertProfile(350f, 110f, false)),
+        EMBRAER("E190", AlertProfile(320f, 105f, false)),
+        GARMIN("G1000", AlertProfile(163f, 48f, false)),
+        CESSNA("C172", AlertProfile(163f, 48f, false)),
+        HELI("R44", AlertProfile(130f, 0f, false)),
+        GLIDER("Szybowiec", AlertProfile(151f, 38f, true)),
     }
 
     var style = Style.AIRBUS
@@ -32,17 +43,22 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
     var onTapEmpty: (() -> Unit)? = null
     var onCalibrated: (() -> Unit)? = null
 
-    private val airbus = AirbusPfd()
-    private val boeing = BoeingPfd()
-    private val garmin = GarminPfd()
-    private val cessna = CessnaPanel()
-    private val renderer: PfdRenderer?
-        get() = when (style) {
-            Style.AIRBUS -> airbus
-            Style.BOEING -> boeing
-            Style.GARMIN -> garmin
-            Style.CESSNA -> null
-        }
+    private val squares: Map<Style, PfdRenderer> = mapOf(
+        Style.AIRBUS to AirbusPfd(AirbusVariant.A320),
+        Style.A350 to AirbusPfd(AirbusVariant.A350),
+        Style.ATR to AirbusPfd(AirbusVariant.ATR72),
+        Style.BOEING to BoeingPfd(BoeingVariant.B737),
+        Style.B787 to BoeingPfd(BoeingVariant.B787),
+        Style.EMBRAER to BoeingPfd(BoeingVariant.E190),
+        Style.GARMIN to GarminPfd(),
+    )
+    private val panels: Map<Style, CessnaPanel> = mapOf(
+        Style.CESSNA to CessnaPanel(CessnaPanel.Kind.CESSNA),
+        Style.HELI to CessnaPanel(CessnaPanel.Kind.HELI),
+        Style.GLIDER to CessnaPanel(CessnaPanel.Kind.GLIDER),
+    )
+    private val renderer: PfdRenderer? get() = squares[style]
+    private val panel: CessnaPanel get() = panels[style] ?: panels.getValue(Style.CESSNA)
 
     private val dp = resources.displayMetrics.density
     private val status = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -80,7 +96,7 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
 
     private fun onTap(x: Float, y: Float) {
         val r = renderer
-        val baroHit = if (r == null) cessna.baroHit(x, y)
+        val baroHit = if (r == null) panel.baroHit(x, y)
         else size > 0f && r.baroRect.contains((x - ox) / size * 1000f, (y - oy) / size * 1000f)
         if (baroHit) {
             hub.std = !hub.std
@@ -95,7 +111,7 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
         val d = hub.snapshot()
         val r = renderer
         if (r == null) {
-            cessna.draw(canvas, d, width.toFloat(), height.toFloat())
+            panel.draw(canvas, d, width.toFloat(), height.toFloat())
         } else {
             size = min(width, height).toFloat()
             ox = (width - size) / 2f

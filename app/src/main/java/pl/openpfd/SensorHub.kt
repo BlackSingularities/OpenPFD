@@ -41,6 +41,8 @@ class SensorHub(ctx: Context) : SensorEventListener, LocationListener {
 
     val hasBaro get() = baroSensor != null
     val qnhProvider = QnhProvider()
+    val terrainProvider = TerrainProvider()
+    val windProvider = WindProvider()
     @Volatile var displayRotation = Surface.ROTATION_0
 
     var std: Boolean
@@ -63,6 +65,10 @@ class SensorHub(ctx: Context) : SensorEventListener, LocationListener {
     private var pitchOff = prefs.getFloat("pitchOff", 0f)
     private var rollOff = prefs.getFloat("rollOff", 0f)
     private var slipF = 0f
+    private var gF = 1f
+    private var lat = 0.0
+    private var lon = 0.0
+    private var hasPos = false
 
     // --- barometr ---
     private var pF = 0f
@@ -185,6 +191,9 @@ class SensorHub(ctx: Context) : SensorEventListener, LocationListener {
         val off = sin(Math.toRadians(rollOff.toDouble())).toFloat() * SensorManager.GRAVITY_EARTH
         val s = -(ar + off) / up
         slipF += 0.08f * (s - slipF)
+        val g = sqrt(e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2]) /
+            SensorManager.GRAVITY_EARTH
+        gF += 0.1f * (g - gF)
     }
 
     private fun onPressure(e: SensorEvent) {
@@ -245,6 +254,11 @@ class SensorHub(ctx: Context) : SensorEventListener, LocationListener {
         gpsAcc = loc.accuracy
         gpsTime = t
         qnhProvider.onLocation(loc.latitude, loc.longitude)
+        terrainProvider.onLocation(loc.latitude, loc.longitude)
+        windProvider.onLocation(loc.latitude, loc.longitude)
+        lat = loc.latitude
+        lon = loc.longitude
+        hasPos = true
         if (pF > 0f && loc.hasAltitude()) {
             val vAcc = if (loc.hasVerticalAccuracy()) loc.verticalAccuracyMeters else 99f
             qnhProvider.onGpsBaro(pF, msl, vAcc)
@@ -277,6 +291,26 @@ class SensorHub(ctx: Context) : SensorEventListener, LocationListener {
             }
         }
         val pitch = rawPitch - pitchOff
+        val msl = when {
+            baroOk -> 145366.45f * (1f - (pF / qnhProvider.qnh).pow(0.190284f))
+            gpsOk && !gpsAltF.isNaN() -> gpsAltF
+            else -> Float.NaN
+        }
+        val grid = terrainProvider.grid
+        val terrainFt = if (hasPos) grid?.elevationAt(lat, lon)?.let { it * 3.28084f } ?: Float.NaN else Float.NaN
+        val raOk = !terrainFt.isNaN() && !msl.isNaN() && gpsOk
+        val trackTrueNow = trackTrue
+        val wind = if (!msl.isNaN()) windProvider.windAt(msl) else null
+        var tas = Float.NaN
+        if (wind != null && gpsOk && hasBearing) {
+            val wr = Math.toRadians(wind.first.toDouble())
+            val tr = Math.toRadians(trackTrueNow.toDouble())
+            val ax = gsF * kotlin.math.sin(tr) + wind.second * kotlin.math.sin(wr)
+            val ay = gsF * kotlin.math.cos(tr) + wind.second * kotlin.math.cos(wr)
+            tas = sqrt(ax * ax + ay * ay).toFloat()
+        }
+        val sfcT = windProvider.surfaceTempC
+        val oat = if (!sfcT.isNaN() && !msl.isNaN()) sfcT - 1.98f * (msl - (if (terrainFt.isNaN()) 0f else terrainFt)) / 1000f else Float.NaN
         val gsMs = gsF / 1.943844f
         val fpa = if (gpsOk && gsF > 3f)
             Math.toDegrees(atan2((vs * 0.00508f).toDouble(), gsMs.toDouble())).toFloat() else pitch
@@ -305,6 +339,21 @@ class SensorHub(ctx: Context) : SensorEventListener, LocationListener {
             gpsAccuracy = gpsAcc,
             sats = sats,
             gpsFix = gpsOk,
+            raFt = if (raOk) (msl - terrainFt) else 0f,
+            raValid = raOk,
+            terrainFt = terrainFt,
+            terrain = grid,
+            lat = lat,
+            lon = lon,
+            mslFt = if (msl.isNaN()) 0f else msl,
+            windDir = wind?.let { wrap360(it.first - decl) } ?: 0f,
+            windKt = wind?.second ?: 0f,
+            windValid = wind != null,
+            tasKt = tas,
+            oatC = oat,
+            drift = if (gpsOk && hasBearing) angDiff(wrap360(trackTrue - decl), rawHdg) else 0f,
+            gLoad = gF,
+            magVar = decl,
         )
     }
 
