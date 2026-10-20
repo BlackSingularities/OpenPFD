@@ -90,7 +90,6 @@ object Updater {
                     session.commit(pi.intentSender)
                 }
             } catch (e: Exception) {
-                val url = apkUrl
                 act.runOnUiThread {
                     Toast.makeText(act, "Błąd aktualizacji: ${e.message}", Toast.LENGTH_LONG).show()
                 }
