@@ -1,7 +1,6 @@
 package pl.openpfd
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageInstaller
@@ -22,7 +21,7 @@ object Updater {
     private const val REPO = "BlackSingularities/OpenPFD"
     @Volatile private var running = false
 
-    fun check(act: Activity, manual: Boolean) {
+    fun check(act: Activity, manual: Boolean, onAvailable: (tag: String, url: String) -> Unit) {
         if (running) return
         running = true
         thread(name = "update-check") {
@@ -36,16 +35,11 @@ object Updater {
                     val a = assets.getJSONObject(i)
                     if (a.getString("name").endsWith(".apk")) apkUrl = a.getString("browser_download_url")
                 }
-                val notes = json.optString("body", "").take(600)
+                val url = apkUrl
                 act.runOnUiThread {
                     if (act.isFinishing) return@runOnUiThread
-                    if (code > BuildConfig.VERSION_CODE && apkUrl != null) {
-                        AlertDialog.Builder(act, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                            .setTitle("Dostępna aktualizacja $tag")
-                            .setMessage("Zainstalowana: v${BuildConfig.VERSION_NAME}\n\n$notes")
-                            .setPositiveButton("Aktualizuj") { _, _ -> install(act, apkUrl) }
-                            .setNegativeButton("Później", null)
-                            .show()
+                    if (code > BuildConfig.VERSION_CODE && url != null) {
+                        onAvailable(tag, url)
                     } else if (manual) {
                         Toast.makeText(act, "Masz najnowszą wersję (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
                     }
@@ -60,7 +54,7 @@ object Updater {
         }
     }
 
-    private fun install(act: Activity, url: String) {
+    fun install(act: Activity, url: String) {
         if (!act.packageManager.canRequestPackageInstalls()) {
             Toast.makeText(act, "Zezwól OpenPFD na instalowanie aplikacji i spróbuj ponownie", Toast.LENGTH_LONG).show()
             act.startActivity(
@@ -96,6 +90,7 @@ object Updater {
                     session.commit(pi.intentSender)
                 }
             } catch (e: Exception) {
+                val url = apkUrl
                 act.runOnUiThread {
                     Toast.makeText(act, "Błąd aktualizacji: ${e.message}", Toast.LENGTH_LONG).show()
                 }
