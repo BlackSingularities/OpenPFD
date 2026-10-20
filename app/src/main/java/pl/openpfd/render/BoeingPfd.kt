@@ -31,7 +31,7 @@ data class BoeingVariant(
     }
 }
 
-class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer {
+class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRenderer {
     private val p = Pen()
 
     private companion object {
@@ -50,10 +50,10 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
     }
 
     private val skyPaint = Paint().apply {
-        shader = LinearGradient(0f, BY - 400f, 0f, BY, v.skyTop, v.sky, Shader.TileMode.CLAMP)
+        shader = LinearGradient(0f, BY - 400f, 0f, BY, vr.skyTop, vr.sky, Shader.TileMode.CLAMP)
     }
     private val groundPaint = Paint().apply {
-        shader = LinearGradient(0f, BY, 0f, BY + 400f, v.ground, v.groundBottom, Shader.TileMode.CLAMP)
+        shader = LinearGradient(0f, BY, 0f, BY + 400f, vr.ground, vr.groundBottom, Shader.TileMode.CLAMP)
     }
 
     private val attClip = Path().apply {
@@ -196,7 +196,7 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
         val t = 170f
         val b = 770f
         val k = 4.2f
-        p.rect(c, l, t, r, b, v.tape)
+        p.rect(c, l, t, r, b, vr.tape)
         if (!d.speedValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
             p.text(c, "SPD", (l + r) / 2, BY, 40f, Col.AMBER)
@@ -212,8 +212,8 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
             if (v % 20 == 0) p.text(c, v.toString(), r - 28, y, 40f, Col.WHITE, Paint.Align.RIGHT)
             v += 10
         }
-        if (s + 80f > v.vmo) {
-            var y = BY - (v.vmo - s) * k
+        if (s + 80f > vr.vmo) {
+            var y = BY - (vr.vmo - s) * k
             var red = true
             while (y > t) {
                 p.rect(c, r - 12, y - 12, r, y, if (red) Col.RED else Col.BLACK)
@@ -260,7 +260,7 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
         val t = 170f
         val b = 770f
         val k = 0.3f
-        p.rect(c, l, t, r, b, v.tape)
+        p.rect(c, l, t, r, b, vr.tape)
         if (!d.altValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
             p.text(c, "ALT", (l + r) / 2, BY, 40f, Col.AMBER)
@@ -334,7 +334,7 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
     private fun drawVsi(c: Canvas, d: FlightData) {
         val l = 942f
         val r = 998f
-        p.poly(c, v.vsiBg, 0, 0f, l, 290f, l + 22, 230f, r, 230f, r, 710f, l + 22, 710f, l, 650f)
+        p.poly(c, vr.vsiBg, 0, 0f, l, 290f, l + 22, 230f, r, 230f, r, 710f, l + 22, 710f, l, 650f)
         for (v in intArrayOf(500, 1000, 1500, 2000, 6000)) {
             for (sg in intArrayOf(-1, 1)) {
                 val y = vy((sg * v).toFloat())
@@ -361,7 +361,7 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
     private fun drawCompass(c: Canvas, d: FlightData) {
         c.save()
         c.clipRect(0f, 862f, 1000f, 1000f)
-        p.circle(c, RCX, RCY, RAD, v.rose)
+        p.circle(c, RCX, RCY, RAD, vr.rose)
         if (!d.attValid) {
             c.restore()
             p.text(c, "HDG", RCX, 930f, 40f, Col.AMBER)
@@ -400,7 +400,7 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
 
     // ---------------------------------------------------------------- FMA
     private fun drawFma(c: Canvas, d: FlightData) {
-        p.rect(c, 200f, 12f, 740f, 80f, v.fmaBg)
+        p.rect(c, 200f, 12f, 740f, 80f, vr.fmaBg)
         p.line(c, 380f, 16f, 380f, 76f, Col.WHITE, 2.5f)
         p.line(c, 560f, 16f, 560f, 76f, Col.WHITE, 2.5f)
         val flying = d.speedValid && d.speedKt > 30f
@@ -408,7 +408,7 @@ class BoeingPfd(private val v: BoeingVariant = BoeingVariant.B737) : PfdRenderer
         if (d.hasTrack) p.text(c, "HDG SEL", 470f, 46f, 38f, GREEN)
         if (d.altValid && abs(d.vsFpm) >= 300f) p.text(c, "V/S", 650f, 46f, 38f, GREEN)
         else if (flying) p.text(c, "ALT HOLD", 650f, 46f, 38f, GREEN)
-        p.text(c, v.fd, BX, 128f, 48f, Col.WHITE)
+        p.text(c, vr.fd, BX, 128f, 48f, Col.WHITE)
     }
 
     // ---------------------------------------------------------------- wiatr

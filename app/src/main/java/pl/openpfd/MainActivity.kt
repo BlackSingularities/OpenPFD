@@ -267,6 +267,12 @@ class MainActivity : Activity() {
             append("QNH      ${d.qnh.roundToInt()} hPa · ${d.qnhSource}\n")
             append("Wysok.   " + (if (!d.altValid) "brak" else if (d.altFromBaro) "barometr" else "GPS (brak barometru)") + "\n")
             append("Kurs     " + (if (d.headingMagnetic) "magnetyczny" else "względny (brak magnetometru)") + "\n")
+            append("Teren    " + when {
+                d.terrain == null -> "brak (wymaga sieci i GPS)"
+                d.raValid -> "RA ${d.raFt.roundToInt()} ft · teren ${d.terrainFt.roundToInt()} ft"
+                else -> "pobrany"
+            } + "\n")
+            append("Wiatr    " + (if (d.windValid) "${d.windDir.roundToInt()}°/${d.windKt.roundToInt()} kt (prognoza)" else "brak") + "\n")
             append("Wersja   ${BuildConfig.VERSION_NAME}")
         }
         content.addView(Ui.label(this, info, 12f).apply {

@@ -31,7 +31,7 @@ data class AirbusVariant(
 }
 
 /** PFD w stylu Airbusa (A320, A350) i Thalesa (ATR 72-600). */
-class AirbusPfd(private val v: AirbusVariant = AirbusVariant.A320) : PfdRenderer {
+class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRenderer {
     private val p = Pen()
 
     private companion object {
@@ -45,14 +45,14 @@ class AirbusPfd(private val v: AirbusVariant = AirbusVariant.A320) : PfdRenderer
         const val GREY_LINE = 0xFFA0A0A0.toInt()
     }
 
-    private val tape = v.tape
-    private val vsiBg = v.vsiBg
-    private val vmo = v.vmo
+    private val tape = vr.tape
+    private val vsiBg = vr.vsiBg
+    private val vmo = vr.vmo
     private val skyPaint = Paint().apply {
-        shader = LinearGradient(0f, CY - 450f, 0f, CY, v.skyTop, v.sky, Shader.TileMode.CLAMP)
+        shader = LinearGradient(0f, CY - 450f, 0f, CY, vr.skyTop, vr.sky, Shader.TileMode.CLAMP)
     }
     private val groundPaint = Paint().apply {
-        shader = LinearGradient(0f, CY, 0f, CY + 450f, v.ground, v.groundBottom, Shader.TileMode.CLAMP)
+        shader = LinearGradient(0f, CY, 0f, CY + 450f, vr.ground, vr.groundBottom, Shader.TileMode.CLAMP)
     }
 
     private val attClip = Path().apply {
@@ -400,8 +400,8 @@ class AirbusPfd(private val v: AirbusVariant = AirbusVariant.A320) : PfdRenderer
             p.text(c, "GPS", 710f, y1, sz, Col.WHITE)
             p.text(c, "PRIMARY", 710f, y2, sz, Col.WHITE)
         }
-        p.text(c, v.fd, 902f, y2, sz, Col.WHITE)
-        if (flying && v.athr.isNotEmpty()) p.text(c, v.athr, 902f, 136f, sz, Col.WHITE)
+        p.text(c, vr.fd, 902f, y2, sz, Col.WHITE)
+        if (flying && vr.athr.isNotEmpty()) p.text(c, vr.athr, 902f, 136f, sz, Col.WHITE)
     }
 
     // ---------------------------------------------------------------- GS / TAS / wiatr
