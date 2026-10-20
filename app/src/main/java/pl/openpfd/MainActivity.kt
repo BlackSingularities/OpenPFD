@@ -28,6 +28,8 @@ import kotlin.math.roundToInt
 class MainActivity : Activity() {
     private lateinit var hub: SensorHub
     private lateinit var pfd: PfdView
+    private lateinit var alerts: AlertEngine
+    private lateinit var topScroll: android.widget.HorizontalScrollView
     private lateinit var root: FrameLayout
     private lateinit var topBar: LinearLayout
     private val stylePills = HashMap<PfdView.Style, TextView>()
@@ -36,7 +38,13 @@ class MainActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val hideChrome = Runnable {
-        topBar.animate().alpha(0f).setDuration(250).withEndAction { topBar.visibility = View.GONE }
+        topScroll.animate().alpha(0f).setDuration(250).withEndAction { topScroll.visibility = View.GONE }
+    }
+    private val alertLoop = object : Runnable {
+        override fun run() {
+            alerts.update(hub.snapshot(), pfd.style.alerts)
+            handler.postDelayed(this, 200L)
+        }
     }
     private val periodicUpdate = object : Runnable {
         override fun run() {
@@ -55,9 +63,12 @@ class MainActivity : Activity() {
         hub = SensorHub(this)
         pfd = PfdView(this, hub)
         val prefs = getSharedPreferences("openpfd", MODE_PRIVATE)
+        alerts = AlertEngine(this)
+        alerts.voiceOn = prefs.getBoolean("alerts", true)
+        alerts.varioOn = prefs.getBoolean("vario", true)
         pfd.style = PfdView.Style.entries.firstOrNull { it.name == prefs.getString("style", "AIRBUS") }
             ?: PfdView.Style.AIRBUS
-        pfd.onTapEmpty = { if (topBar.visibility == View.VISIBLE) hideChrome.run() else showChrome() }
+        pfd.onTapEmpty = { if (topScroll.visibility == View.VISIBLE) hideChrome.run() else showChrome() }
         pfd.onCalibrated = { Toast.makeText(this, "Skalibrowano poziom", Toast.LENGTH_SHORT).show() }
 
         root = FrameLayout(this)
@@ -79,16 +90,22 @@ class MainActivity : Activity() {
         super.onResume()
         hub.displayRotation = currentRotation()
         hub.start()
+        alerts.start()
+        handler.removeCallbacks(alertLoop)
+        handler.post(alertLoop)
         hideSystemUi()
     }
 
     override fun onPause() {
+        handler.removeCallbacks(alertLoop)
+        alerts.stop()
         hub.stop()
         super.onPause()
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        alerts.shutdown()
         super.onDestroy()
     }
 
@@ -148,15 +165,21 @@ class MainActivity : Activity() {
             topBar.addView(pv, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(4f) })
         }
         topBar.addView(Ui.pill(this, "⚙") { openSheet() })
-        root.addView(topBar, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+        topScroll = android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(topBar)
+        }
+        root.addView(topScroll, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(12f)
+            leftMargin = dp(8f)
+            rightMargin = dp(8f)
         })
     }
 
     private fun showChrome() {
-        topBar.animate().cancel()
-        topBar.visibility = View.VISIBLE
-        topBar.animate().alpha(1f).setDuration(150)
+        topScroll.animate().cancel()
+        topScroll.visibility = View.VISIBLE
+        topScroll.animate().alpha(1f).setDuration(150)
         handler.removeCallbacks(hideChrome)
         handler.postDelayed(hideChrome, 4000L)
     }
@@ -205,6 +228,16 @@ class MainActivity : Activity() {
             if (hub.inHg) 1 else 0) { hub.inHg = it == 1 })
         content.addView(Ui.segmented(this, "Wektor toru lotu (FPV)", listOf("Wł.", "Wył."),
             if (hub.fpv) 0 else 1) { hub.fpv = it == 0 })
+        content.addView(Ui.segmented(this, "Ostrzeżenia głosowe i dźwiękowe", listOf("Wł.", "Wył."),
+            if (alerts.voiceOn) 0 else 1) {
+            alerts.voiceOn = it == 0
+            getSharedPreferences("openpfd", MODE_PRIVATE).edit().putBoolean("alerts", alerts.voiceOn).apply()
+        })
+        content.addView(Ui.segmented(this, "Wariometr dźwiękowy (szybowiec)", listOf("Wł.", "Wył."),
+            if (alerts.varioOn) 0 else 1) {
+            alerts.varioOn = it == 0
+            getSharedPreferences("openpfd", MODE_PRIVATE).edit().putBoolean("vario", alerts.varioOn).apply()
+        })
 
         content.addView(Ui.label(this, "Czynności").apply { setPadding(0, dp(14f), 0, dp(8f)) })
         val actions = listOf<Pair<String, () -> Unit>>(
@@ -215,6 +248,7 @@ class MainActivity : Activity() {
             "Resetuj kalibrację" to { hub.resetCalibration() },
             "Odśwież QNH" to { hub.qnhProvider.refresh() },
             "Sprawdź aktualizacje" to { checkUpdates(true) },
+            "Test ostrzeżeń" to { alerts.test() },
         )
         actions.chunked(2).forEach { pair ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -233,6 +267,12 @@ class MainActivity : Activity() {
             append("QNH      ${d.qnh.roundToInt()} hPa · ${d.qnhSource}\n")
             append("Wysok.   " + (if (!d.altValid) "brak" else if (d.altFromBaro) "barometr" else "GPS (brak barometru)") + "\n")
             append("Kurs     " + (if (d.headingMagnetic) "magnetyczny" else "względny (brak magnetometru)") + "\n")
+            append("Teren    " + when {
+                d.terrain == null -> "brak (wymaga sieci i GPS)"
+                d.raValid -> "RA ${d.raFt.roundToInt()} ft · teren ${d.terrainFt.roundToInt()} ft"
+                else -> "pobrany"
+            } + "\n")
+            append("Wiatr    " + (if (d.windValid) "${d.windDir.roundToInt()}°/${d.windKt.roundToInt()} kt (prognoza)" else "brak") + "\n")
             append("Wersja   ${BuildConfig.VERSION_NAME}")
         }
         content.addView(Ui.label(this, info, 12f).apply {

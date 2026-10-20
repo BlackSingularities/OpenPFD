@@ -1,9 +1,11 @@
 package pl.openpfd.render
 
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Shader
 import pl.openpfd.FlightData
 import pl.openpfd.angDiff
 import java.util.Locale
@@ -13,8 +15,23 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
-/** PFD w stylu Airbusa A320 (EFIS: FMA, taśmy prędkości/wysokości, V/S, taśma kursu). */
-class AirbusPfd : PfdRenderer {
+/** Wariant kolorystyki i ograniczeń rodziny Airbus / Thales. */
+data class AirbusVariant(
+    val skyTop: Int, val sky: Int, val ground: Int, val groundBottom: Int,
+    val tape: Int, val vsiBg: Int, val vmo: Float, val fd: String, val athr: String,
+) {
+    companion object {
+        val A320 = AirbusVariant(0xFF1C9AEA.toInt(), 0xFF1C9AEA.toInt(), 0xFF8C4B1D.toInt(), 0xFF8C4B1D.toInt(),
+            0xFF5D5D5D.toInt(), 0xFF3F3F3F.toInt(), 350f, "1 FD 2", "A/THR")
+        val A350 = AirbusVariant(0xFF0B5DB8.toInt(), 0xFF3A9BEA.toInt(), 0xFF8E4F22.toInt(), 0xFF4E2A0E.toInt(),
+            0xFF44474C.toInt(), 0xFF2E3135.toInt(), 340f, "1 FD 2", "A/THR")
+        val ATR72 = AirbusVariant(0xFF1478D0.toInt(), 0xFF2E9BF0.toInt(), 0xFF8A5426.toInt(), 0xFF6A3C16.toInt(),
+            0xFF545454.toInt(), 0xFF3A3A3A.toInt(), 250f, "FD", "")
+    }
+}
+
+/** PFD w stylu Airbusa (A320, A350) i Thalesa (ATR 72-600). */
+class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRenderer {
     private val p = Pen()
 
     private companion object {
@@ -22,16 +39,20 @@ class AirbusPfd : PfdRenderer {
         const val CY = 512f
         const val PPD = 10.5f          // jednostek na stopień pochylenia
 
-        const val SKY = 0xFF1C9AEA.toInt()
-        const val GROUND = 0xFF8C4B1D.toInt()
-        const val TAPE = 0xFF5D5D5D.toInt()
-        const val VSI_BG = 0xFF3F3F3F.toInt()
         const val GREEN = 0xFF2BF22B.toInt()
         const val CYAN = 0xFF1FE6FF.toInt()
         const val YELLOW = 0xFFFFF200.toInt()
         const val GREY_LINE = 0xFFA0A0A0.toInt()
+    }
 
-        const val VMO = 350f
+    private val tape = vr.tape
+    private val vsiBg = vr.vsiBg
+    private val vmo = vr.vmo
+    private val skyPaint = Paint().apply {
+        shader = LinearGradient(0f, CY - 450f, 0f, CY, vr.skyTop, vr.sky, Shader.TileMode.CLAMP)
+    }
+    private val groundPaint = Paint().apply {
+        shader = LinearGradient(0f, CY, 0f, CY + 450f, vr.ground, vr.groundBottom, Shader.TileMode.CLAMP)
     }
 
     private val attClip = Path().apply {
@@ -49,6 +70,7 @@ class AirbusPfd : PfdRenderer {
         drawHeading(c, d)
         drawFma(c, d)
         drawBaro(c, d)
+        drawWind(c, d)
     }
 
     // ---------------------------------------------------------------- horyzont
@@ -63,8 +85,8 @@ class AirbusPfd : PfdRenderer {
         c.save()
         c.rotate(-d.roll, CX, CY)
         c.translate(0f, d.pitch * PPD)
-        p.rect(c, CX - 1000, CY - 3000, CX + 1000, CY, SKY)
-        p.rect(c, CX - 1000, CY, CX + 1000, CY + 3000, GROUND)
+        c.drawRect(CX - 1000, CY - 3000, CX + 1000, CY, skyPaint)
+        c.drawRect(CX - 1000, CY, CX + 1000, CY + 3000, groundPaint)
         p.line(c, CX - 1000, CY, CX + 1000, CY, Col.WHITE, 3f)
 
         // znaczniki kursu na linii horyzontu
@@ -111,6 +133,10 @@ class AirbusPfd : PfdRenderer {
 
         drawRollScale(c, d)
         drawAircraft(c)
+        if (d.raValid && d.raFt < 2500f) {
+            val ra = if (d.raFt < 50f) d.raFt.roundToInt() else (d.raFt / 10f).roundToInt() * 10
+            p.text(c, ra.toString(), CX, 728f, 48f, if (d.raFt < 200f) Col.AMBER else GREEN)
+        }
     }
 
     private fun bird(c: Canvas, x: Float, y: Float, color: Int) {
@@ -171,7 +197,7 @@ class AirbusPfd : PfdRenderer {
             return
         }
         val s = d.speedKt
-        p.rect(c, l, t, r, b, TAPE)
+        p.rect(c, l, t, r, b, tape)
         c.save()
         c.clipRect(l, t, r, b)
         var v = floorTo(s - 70f, 10).coerceAtLeast(0)
@@ -181,9 +207,9 @@ class AirbusPfd : PfdRenderer {
             if (v % 20 == 0) p.text(c, v.toString(), r - 28, y, 42f, Col.WHITE, Paint.Align.RIGHT)
             v += 10
         }
-        // VMO – czerwono-czarny „barber pole”
-        if (s + 70f > VMO) {
-            var y = CY - (VMO - s) * k
+        // vmo – czerwono-czarny „barber pole”
+        if (s + 70f > vmo) {
+            var y = CY - (vmo - s) * k
             var red = true
             while (y > t) {
                 p.rect(c, r - 14, y - 12, r, y, if (red) Col.RED else Col.BLACK)
@@ -223,7 +249,7 @@ class AirbusPfd : PfdRenderer {
             return
         }
         val a = d.altFt
-        p.rect(c, l, t, r, b, TAPE)
+        p.rect(c, l, t, r, b, tape)
         c.save()
         c.clipRect(l, t, r, b)
         var v = floorTo(a - 700f, 100)
@@ -235,6 +261,13 @@ class AirbusPfd : PfdRenderer {
                 p.text(c, lbl, l + 12, y, 40f, Col.WHITE, Paint.Align.LEFT)
             }
             v += 100
+        }
+        if (!d.terrainFt.isNaN() && !d.std) {
+            val yT = CY - (d.terrainFt - a) * k
+            if (yT < b) {
+                p.rect(c, r - 16, yT.coerceAtLeast(t), r, b, Col.RED)
+                p.line(c, l, yT, r, yT, Col.RED, 3f)
+            }
         }
         c.restore()
         p.line(c, l - 4, t, r, t, Col.WHITE, 3f)
@@ -269,7 +302,7 @@ class AirbusPfd : PfdRenderer {
     private fun drawVsi(c: Canvas, d: FlightData) {
         val l = 900f
         val r = 992f
-        p.poly(c, VSI_BG, 0, 0f, l, 280f, l + 32, 208f, r, 208f, r, 816f, l + 32, 816f, l, 744f)
+        p.poly(c, vsiBg, 0, 0f, l, 280f, l + 32, 208f, r, 208f, r, 816f, l + 32, 816f, l, 744f)
         for (v in intArrayOf(500, 1000, 1500, 2000, 6000)) {
             for (sg in intArrayOf(-1, 1)) {
                 val y = vy((sg * v).toFloat())
@@ -312,7 +345,7 @@ class AirbusPfd : PfdRenderer {
             return
         }
         val h = d.heading
-        p.rect(c, l, t, r, b, TAPE)
+        p.rect(c, l, t, r, b, tape)
         c.save()
         c.clipRect(l, t, r, b)
         var deg = floorTo(h - 28f, 5)
@@ -367,8 +400,28 @@ class AirbusPfd : PfdRenderer {
             p.text(c, "GPS", 710f, y1, sz, Col.WHITE)
             p.text(c, "PRIMARY", 710f, y2, sz, Col.WHITE)
         }
-        p.text(c, "1 FD 2", 902f, y2, sz, Col.WHITE)
-        if (flying) p.text(c, "A/THR", 902f, 136f, sz, Col.WHITE)
+        p.text(c, vr.fd, 902f, y2, sz, Col.WHITE)
+        if (flying && vr.athr.isNotEmpty()) p.text(c, vr.athr, 902f, 136f, sz, Col.WHITE)
+    }
+
+    // ---------------------------------------------------------------- GS / TAS / wiatr
+    private fun drawWind(c: Canvas, d: FlightData) {
+        val x = 18f
+        if (d.speedValid) p.text(c, "GS " + d.speedKt.roundToInt(), x, 830f, 32f, Col.WHITE, Paint.Align.LEFT)
+        if (!d.tasKt.isNaN()) p.text(c, "TAS " + d.tasKt.roundToInt(), x, 870f, 32f, Col.WHITE, Paint.Align.LEFT)
+        if (d.windValid) {
+            val txt = String.format(Locale.US, "%03d°/%d", mod(d.windDir.roundToInt(), 360), d.windKt.roundToInt())
+            p.text(c, txt, x, 915f, 32f, GREEN, Paint.Align.LEFT)
+            c.save()
+            c.rotate(d.windDir - d.heading + 180f, 172f, 915f)
+            p.line(c, 172f, 935f, 172f, 895f, GREEN, 4f)
+            p.poly(c, GREEN, 0, 0f, 172f, 935f, 164f, 920f, 180f, 920f)
+            c.restore()
+        }
+        if (d.hasTrack && abs(d.drift) >= 1f) {
+            val side = if (d.drift > 0) "R" else "L"
+            p.text(c, "DRIFT " + abs(d.drift).roundToInt() + "°" + side, x, 958f, 28f, CYAN, Paint.Align.LEFT)
+        }
     }
 
     // ---------------------------------------------------------------- baro

@@ -2,6 +2,7 @@ package pl.openpfd.render
 
 import android.graphics.Canvas
 import android.graphics.LinearGradient
+import android.graphics.Path
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
@@ -9,10 +10,13 @@ import pl.openpfd.FlightData
 import pl.openpfd.angDiff
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sign
+import kotlin.math.sin
 
 /** PFD w stylu Garmin G1000/G3000 z widokiem syntetycznym (SVT). */
 class GarminPfd : PfdRenderer {
@@ -62,6 +66,7 @@ class GarminPfd : PfdRenderer {
         drawHsi(c, d)
         drawFma(c, d)
         drawBaro(c, d)
+        drawWindOat(c, d)
     }
 
     // ---------------------------------------------------------------- SVT / horyzont
@@ -78,6 +83,7 @@ class GarminPfd : PfdRenderer {
         c.translate(0f, d.pitch * PPD)
         c.drawRect(CX - 1200, CY - 3000, CX + 1200, CY, skyPaint)
         c.drawRect(CX - 1200, CY, CX + 1200, CY + 3000, groundPaint)
+        drawTerrain(c, d)
         p.line(c, CX - 1200, CY, CX + 1200, CY, Col.WHITE, 4f)
 
         // kursy na linii horyzontu
@@ -132,6 +138,96 @@ class GarminPfd : PfdRenderer {
 
         drawRollScale(c, d)
         drawAircraft(c)
+        if (d.raValid && d.raFt < 2500f) {
+            val ra = if (d.raFt < 100f) d.raFt.roundToInt() else (d.raFt / 10f).roundToInt() * 10
+            p.text(c, "RA " + ra, CX + 130f, CY + 200f, 34f, if (d.raFt < 200f) YELLOW else GREEN, Paint.Align.LEFT)
+        }
+    }
+
+    // ---------------------------------------------------------------- teren 3D (SVT)
+    private val quad = Path()
+    private val terrainFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val terrainEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.2f
+        color = 0x30000000
+    }
+    private var sx = FloatArray(0)
+    private var sy = FloatArray(0)
+    private var sd = FloatArray(0)
+
+    /** Rzutuje siatkę DEM na widok z kabiny (rzut kątowy zgodny z drabinką pochylenia). */
+    private fun drawTerrain(c: Canvas, d: FlightData) {
+        val g = d.terrain ?: return
+        if (!d.altValid) return
+        val n = g.n
+        if (sx.size != n * n) {
+            sx = FloatArray(n * n); sy = FloatArray(n * n); sd = FloatArray(n * n)
+        }
+        val (offN, offE) = g.offsetM(d.lat, d.lon)
+        val camAlt = d.mslFt * 0.3048f
+        val h = Math.toRadians((d.heading + d.magVar).toDouble())
+        val sh = sin(h).toFloat()
+        val ch = cos(h).toFloat()
+        var minE = Float.MAX_VALUE
+        var maxE = -Float.MAX_VALUE
+        for (k in 0 until n * n) {
+            val e = g.elevM[k]
+            if (e < minE) minE = e
+            if (e > maxE) maxE = e
+        }
+        for (i in 0 until n) for (j in 0 until n) {
+            val k = i * n + j
+            val north = (g.pointNorth(i) - offN).toFloat()
+            val east = (g.pointEast(j) - offE).toFloat()
+            val fwd = east * sh + north * ch
+            val lat = east * ch - north * sh
+            val up = g.elevM[k] - camAlt
+            sd[k] = fwd
+            if (fwd > 40f) {
+                sx[k] = CX + Math.toDegrees(atan2(lat.toDouble(), fwd.toDouble())).toFloat() * PPD
+                sy[k] = CY - Math.toDegrees(atan2(up.toDouble(), fwd.toDouble())).toFloat() * PPD
+            }
+        }
+        // kolejność malarza: od najdalszych
+        val cells = ArrayList<Int>((n - 1) * (n - 1))
+        for (i in 0 until n - 1) for (j in 0 until n - 1) cells += i * n + j
+        cells.sortByDescending { k -> sd[k] + sd[k + 1] + sd[k + n] + sd[k + n + 1] }
+        val range = (maxE - minE).coerceAtLeast(1f)
+        for (k in cells) {
+            val a = k
+            val b = k + 1
+            val cc = k + n + 1
+            val dd = k + n
+            if (sd[a] <= 40f || sd[b] <= 40f || sd[cc] <= 40f || sd[dd] <= 40f) continue
+            val elev = (g.elevM[a] + g.elevM[b] + g.elevM[cc] + g.elevM[dd]) / 4f
+            val clearanceFt = (camAlt - elev) * 3.28084f
+            val dist = (sd[a] + sd[b] + sd[cc] + sd[dd]) / 4f
+            // cieniowanie od nachylenia (światło z północnego zachodu)
+            val slope = ((g.elevM[a] - g.elevM[b]) + (g.elevM[dd] - g.elevM[a]) * -1f) / 3000f
+            var col = when {
+                clearanceFt < 100f -> 0xFFC8231E.toInt()
+                clearanceFt < 1000f -> 0xFFC9A51E.toInt()
+                else -> mix(0xFF2F6B22.toInt(), 0xFF8C8A4A.toInt(), (elev - minE) / range * 0.8f)
+            }
+            col = mix(col, 0xFF000000.toInt(), (0.15f - slope * 2f).coerceIn(0f, 0.35f))
+            col = mix(col, 0xFF9DB7CF.toInt(), (dist / 16000f).coerceIn(0f, 0.55f))
+            quad.reset()
+            quad.moveTo(sx[a], sy[a])
+            quad.lineTo(sx[b], sy[b])
+            quad.lineTo(sx[cc], sy[cc])
+            quad.lineTo(sx[dd], sy[dd])
+            quad.close()
+            terrainFill.color = col
+            c.drawPath(quad, terrainFill)
+            c.drawPath(quad, terrainEdge)
+        }
+    }
+
+    private fun mix(a: Int, b: Int, t: Float): Int {
+        val u = t.coerceIn(0f, 1f)
+        fun ch(sh: Int) = (((a shr sh) and 0xFF) * (1 - u) + ((b shr sh) and 0xFF) * u).toInt()
+        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
     }
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
@@ -215,6 +311,11 @@ class GarminPfd : PfdRenderer {
         p.rect(c, l, b + 10, r, b + 56, PANEL_DARK)
         p.text(c, "GS", l + 10, b + 33, 28f, Col.WHITE, Paint.Align.LEFT)
         p.text(c, s.roundToInt().toString(), r - 10, b + 33, 34f, Col.WHITE, Paint.Align.RIGHT)
+        if (!d.tasKt.isNaN()) {
+            p.rect(c, l, b + 62, r, b + 108, PANEL_DARK)
+            p.text(c, "TAS", l + 10, b + 85, 28f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, d.tasKt.roundToInt().toString(), r - 10, b + 85, 34f, Col.WHITE, Paint.Align.RIGHT)
+        }
     }
 
     // ---------------------------------------------------------------- wysokość
@@ -354,6 +455,24 @@ class GarminPfd : PfdRenderer {
         val fl = (pressureAlt / 100f).roundToInt().coerceAtLeast(0)
         val src = if (d.gpsFix) "GPS" else "NO GPS"
         p.text(c, String.format(Locale.US, "%s | FL%03d", src, fl), CX, 70f, 28f, Col.WHITE)
+    }
+
+    // ---------------------------------------------------------------- wiatr i OAT
+    private fun drawWindOat(c: Canvas, d: FlightData) {
+        if (d.windValid) {
+            p.rect(c, 15f, 815f, 205f, 885f, PANEL_DARK)
+            c.save()
+            c.rotate(d.windDir - d.heading + 180f, 50f, 850f)
+            p.line(c, 50f, 875f, 50f, 825f, Col.WHITE, 4f)
+            p.poly(c, Col.WHITE, 0, 0f, 50f, 878f, 41f, 860f, 59f, 860f)
+            c.restore()
+            p.text(c, String.format(Locale.US, "%03d°", mod(d.windDir.roundToInt(), 360)), 135f, 834f, 28f, Col.WHITE)
+            p.text(c, d.windKt.roundToInt().toString() + "KT", 135f, 866f, 28f, Col.WHITE)
+        }
+        if (!d.oatC.isNaN()) {
+            p.text(c, "OAT", 20f, 935f, 26f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, d.oatC.roundToInt().toString() + "°C", 80f, 935f, 30f, Col.WHITE, Paint.Align.LEFT)
+        }
     }
 
     // ---------------------------------------------------------------- baro

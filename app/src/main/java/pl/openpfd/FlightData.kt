@@ -26,4 +26,19 @@ data class FlightData(
     val gpsAccuracy: Float,
     val sats: Int,
     val gpsFix: Boolean,
+    val raFt: Float = 0f,          // wysokość nad terenem (z modelu terenu), stopy
+    val raValid: Boolean = false,
+    val terrainFt: Float = Float.NaN,
+    val terrain: TerrainGrid? = null,
+    val lat: Double = 0.0,
+    val lon: Double = 0.0,
+    val mslFt: Float = 0f,         // wysokość nad poziomem morza (QNH lub GPS)
+    val windDir: Float = 0f,       // kierunek wiatru magnetyczny („z”)
+    val windKt: Float = 0f,
+    val windValid: Boolean = false,
+    val tasKt: Float = Float.NaN,
+    val oatC: Float = Float.NaN,
+    val drift: Float = 0f,         // kąt znosu = kąt drogi − kurs
+    val gLoad: Float = 1f,
+    val magVar: Float = 0f,        // deklinacja magnetyczna (E +)
 )

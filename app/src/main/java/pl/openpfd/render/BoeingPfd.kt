@@ -1,9 +1,11 @@
 package pl.openpfd.render
 
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Shader
 import pl.openpfd.FlightData
 import pl.openpfd.angDiff
 import java.util.Locale
@@ -14,7 +16,22 @@ import kotlin.math.roundToInt
 import kotlin.math.sign
 
 /** PFD w stylu Boeinga 737NG/MAX (Common Display System). */
-class BoeingPfd : PfdRenderer {
+/** Wariant kolorystyki i ograniczeń: Boeing 737/787 (CDS) i Embraer E-Jet (Primus Epic). */
+data class BoeingVariant(
+    val skyTop: Int, val sky: Int, val ground: Int, val groundBottom: Int,
+    val tape: Int, val vsiBg: Int, val rose: Int, val fmaBg: Int, val vmo: Float, val fd: String,
+) {
+    companion object {
+        val B737 = BoeingVariant(0xFF1A8FD8.toInt(), 0xFF1A8FD8.toInt(), 0xFF8A4A17.toInt(), 0xFF8A4A17.toInt(),
+            0xFF5E5F63.toInt(), 0xFF4A4B4F.toInt(), 0xFF55565A.toInt(), 0xFF3A3B3E.toInt(), 340f, "FD")
+        val B787 = BoeingVariant(0xFF0A4FA8.toInt(), 0xFF3C9CEC.toInt(), 0xFF915121.toInt(), 0xFF4A260C.toInt(),
+            0xFF3E4146.toInt(), 0xFF33363B.toInt(), 0xFF3A3D42.toInt(), 0xFF202226.toInt(), 350f, "FD")
+        val E190 = BoeingVariant(0xFF0F6CC4.toInt(), 0xFF2F95E6.toInt(), 0xFF7A4A1E.toInt(), 0xFF5A3410.toInt(),
+            0xFF2A2C30.toInt(), 0xFF2A2C30.toInt(), 0xFF2E3034.toInt(), 0xFF000000.toInt(), 320f, "FD 1")
+    }
+}
+
+class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRenderer {
     private val p = Pen()
 
     private companion object {
@@ -24,19 +41,19 @@ class BoeingPfd : PfdRenderer {
         const val AH = 220f
         const val PPD = 9.5f
 
-        const val SKY = 0xFF1A8FD8.toInt()
-        const val GROUND = 0xFF8A4A17.toInt()
-        const val TAPE = 0xFF5E5F63.toInt()
-        const val VSI_BG = 0xFF4A4B4F.toInt()
-        const val ROSE = 0xFF55565A.toInt()
-        const val FMA_BG = 0xFF3A3B3E.toInt()
         const val GREEN = 0xFF3EEA4C.toInt()
         const val CYAN = 0xFF33DDFF.toInt()
 
-        const val VMO = 340f
         const val RCX = BX
         const val RCY = 1215f
         const val RAD = 330f
+    }
+
+    private val skyPaint = Paint().apply {
+        shader = LinearGradient(0f, BY - 400f, 0f, BY, vr.skyTop, vr.sky, Shader.TileMode.CLAMP)
+    }
+    private val groundPaint = Paint().apply {
+        shader = LinearGradient(0f, BY, 0f, BY + 400f, vr.ground, vr.groundBottom, Shader.TileMode.CLAMP)
     }
 
     private val attClip = Path().apply {
@@ -53,6 +70,7 @@ class BoeingPfd : PfdRenderer {
         drawCompass(c, d)
         drawFma(c, d)
         drawBaro(c, d)
+        drawWind(c, d)
     }
 
     // ---------------------------------------------------------------- ADI
@@ -68,8 +86,8 @@ class BoeingPfd : PfdRenderer {
         c.save()
         c.rotate(-d.roll, BX, BY)
         c.translate(0f, d.pitch * PPD)
-        p.rect(c, BX - 1000, BY - 3000, BX + 1000, BY, SKY)
-        p.rect(c, BX - 1000, BY, BX + 1000, BY + 3000, GROUND)
+        c.drawRect(BX - 1000, BY - 3000, BX + 1000, BY, skyPaint)
+        c.drawRect(BX - 1000, BY, BX + 1000, BY + 3000, groundPaint)
         p.line(c, BX - 1000, BY, BX + 1000, BY, Col.WHITE, 3f)
 
         // skala kursu na horyzoncie
@@ -125,6 +143,10 @@ class BoeingPfd : PfdRenderer {
 
         drawRollScale(c, d)
         drawAircraft(c)
+        if (d.raValid && d.raFt < 2500f) {
+            val ra = if (d.raFt < 100f) d.raFt.roundToInt() else (d.raFt / 10f).roundToInt() * 10
+            p.text(c, ra.toString(), BX, BY + 175f, 46f, if (d.raFt < 200f) Col.AMBER else Col.WHITE)
+        }
     }
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
@@ -174,7 +196,7 @@ class BoeingPfd : PfdRenderer {
         val t = 170f
         val b = 770f
         val k = 4.2f
-        p.rect(c, l, t, r, b, TAPE)
+        p.rect(c, l, t, r, b, vr.tape)
         if (!d.speedValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
             p.text(c, "SPD", (l + r) / 2, BY, 40f, Col.AMBER)
@@ -190,8 +212,8 @@ class BoeingPfd : PfdRenderer {
             if (v % 20 == 0) p.text(c, v.toString(), r - 28, y, 40f, Col.WHITE, Paint.Align.RIGHT)
             v += 10
         }
-        if (s + 80f > VMO) {
-            var y = BY - (VMO - s) * k
+        if (s + 80f > vr.vmo) {
+            var y = BY - (vr.vmo - s) * k
             var red = true
             while (y > t) {
                 p.rect(c, r - 12, y - 12, r, y, if (red) Col.RED else Col.BLACK)
@@ -225,6 +247,10 @@ class BoeingPfd : PfdRenderer {
         // GS
         p.text(c, "GS", 30f, 830f, 34f, Col.WHITE, Paint.Align.LEFT)
         p.text(c, s.roundToInt().toString(), 82f, 828f, 48f, Col.WHITE, Paint.Align.LEFT)
+        if (!d.tasKt.isNaN()) {
+            p.text(c, "TAS", 30f, 878f, 30f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, d.tasKt.roundToInt().toString(), 92f, 878f, 38f, Col.WHITE, Paint.Align.LEFT)
+        }
     }
 
     // ---------------------------------------------------------------- wysokość
@@ -234,7 +260,7 @@ class BoeingPfd : PfdRenderer {
         val t = 170f
         val b = 770f
         val k = 0.3f
-        p.rect(c, l, t, r, b, TAPE)
+        p.rect(c, l, t, r, b, vr.tape)
         if (!d.altValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
             p.text(c, "ALT", (l + r) / 2, BY, 40f, Col.AMBER)
@@ -308,7 +334,7 @@ class BoeingPfd : PfdRenderer {
     private fun drawVsi(c: Canvas, d: FlightData) {
         val l = 942f
         val r = 998f
-        p.poly(c, VSI_BG, 0, 0f, l, 290f, l + 22, 230f, r, 230f, r, 710f, l + 22, 710f, l, 650f)
+        p.poly(c, vr.vsiBg, 0, 0f, l, 290f, l + 22, 230f, r, 230f, r, 710f, l + 22, 710f, l, 650f)
         for (v in intArrayOf(500, 1000, 1500, 2000, 6000)) {
             for (sg in intArrayOf(-1, 1)) {
                 val y = vy((sg * v).toFloat())
@@ -335,7 +361,7 @@ class BoeingPfd : PfdRenderer {
     private fun drawCompass(c: Canvas, d: FlightData) {
         c.save()
         c.clipRect(0f, 862f, 1000f, 1000f)
-        p.circle(c, RCX, RCY, RAD, ROSE)
+        p.circle(c, RCX, RCY, RAD, vr.rose)
         if (!d.attValid) {
             c.restore()
             p.text(c, "HDG", RCX, 930f, 40f, Col.AMBER)
@@ -374,7 +400,7 @@ class BoeingPfd : PfdRenderer {
 
     // ---------------------------------------------------------------- FMA
     private fun drawFma(c: Canvas, d: FlightData) {
-        p.rect(c, 200f, 12f, 740f, 80f, FMA_BG)
+        p.rect(c, 200f, 12f, 740f, 80f, vr.fmaBg)
         p.line(c, 380f, 16f, 380f, 76f, Col.WHITE, 2.5f)
         p.line(c, 560f, 16f, 560f, 76f, Col.WHITE, 2.5f)
         val flying = d.speedValid && d.speedKt > 30f
@@ -382,7 +408,22 @@ class BoeingPfd : PfdRenderer {
         if (d.hasTrack) p.text(c, "HDG SEL", 470f, 46f, 38f, GREEN)
         if (d.altValid && abs(d.vsFpm) >= 300f) p.text(c, "V/S", 650f, 46f, 38f, GREEN)
         else if (flying) p.text(c, "ALT HOLD", 650f, 46f, 38f, GREEN)
-        p.text(c, "FD", BX, 128f, 48f, Col.WHITE)
+        p.text(c, vr.fd, BX, 128f, 48f, Col.WHITE)
+    }
+
+    // ---------------------------------------------------------------- wiatr
+    private fun drawWind(c: Canvas, d: FlightData) {
+        if (!d.windValid) return
+        val txt = String.format(Locale.US, "%03d°/%d", mod(d.windDir.roundToInt(), 360), d.windKt.roundToInt())
+        p.text(c, txt, 30f, 930f, 32f, Col.WHITE, Paint.Align.LEFT)
+        c.save()
+        c.rotate(d.windDir - d.heading + 180f, 200f, 930f)
+        p.line(c, 200f, 952f, 200f, 908f, Col.WHITE, 3.5f)
+        p.poly(c, Col.WHITE, 0, 0f, 200f, 954f, 192f, 938f, 208f, 938f)
+        c.restore()
+        if (d.hasTrack && abs(d.drift) >= 1f) {
+            p.text(c, "DA " + abs(d.drift).roundToInt() + (if (d.drift > 0) "R" else "L"), 30f, 972f, 28f, GREEN, Paint.Align.LEFT)
+        }
     }
 
     // ---------------------------------------------------------------- baro
