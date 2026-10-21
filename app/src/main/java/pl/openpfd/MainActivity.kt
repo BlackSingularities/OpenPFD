@@ -283,6 +283,11 @@ class MainActivity : Activity() {
             "Telefon trzymaj pionowo, ekranem do siebie. Przytrzymaj ekran, by wypoziomować. " +
                 "Dotknij okna ciśnienia, by przełączyć QNH/STD. Nie do nawigacji lotniczej.",
             12f, Ui.TEXT_FAINT))
+        content.addView(Ui.label(this, "Projekt i wykonanie: redzikowski.com", 12f, Ui.TEXT_FAINT).apply {
+            setPadding(0, dp(10f), 0, dp(8f))
+            setOnClickListener { openUrl("https://redzikowski.com") }
+        })
+        content.addView(Ui.pill(this, "☕  Postaw kawę") { openUrl("https://buycoffee.to/adamredzikowski") })
 
         panel.addView(ScrollView(this).apply { addView(content) })
 
@@ -295,6 +300,10 @@ class MainActivity : Activity() {
         panel.translationY = 600f * resources.displayMetrics.density
         panel.animate().translationY(0f).setDuration(220)
         sheet = scrim
+    }
+
+    private fun openUrl(url: String) {
+        runCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) }
     }
 
     private fun closeSheet() {
