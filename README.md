@@ -34,3 +34,9 @@ Każdy merge do `main` buduje podpisany APK i publikuje **GitHub Release** `v1.0
 Aplikacja co 6 h (i przy starcie) sprawdza najnowszy release i proponuje instalację.
 
 > Nie do nawigacji lotniczej.
+
+---
+
+**Projekt i wykonanie: [redzikowski.com](https://redzikowski.com)**
+
+<a href="https://buycoffee.to/adamredzikowski" target="_blank"><img src="https://buycoffee.to/static/img/share/share-button-dark--pl.png" style="width: 351px; height: 92px" width="351" height="92" alt="Postaw kawę dla adamredzikowski na buycoffee.to"></a>
