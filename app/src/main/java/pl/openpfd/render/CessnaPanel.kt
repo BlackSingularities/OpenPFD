@@ -35,7 +35,7 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
     private data class Arc(val from: Float, val to: Float, val r: Float, val w: Float, val color: Int)
     private data class AsiCfg(
         val unit: String, val factor: Float, val max: Float, val firstLabel: Int, val labelStep: Int,
-        val arcs: List<Arc>, val red: Float, val marks: List<Pair<Float, Int>>, val legend: String,
+        val arcs: List<Arc>, val red: Float,
     )
 
     private val gauges = when (kind) {
@@ -45,13 +45,10 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
     }
     private val asiCfg = when (kind) {
         Kind.CESSNA -> AsiCfg("KNOTS", 1f, 200f, 40, 20, listOf(
-            Arc(33f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(44f, 129f, 80f, 7f, GREEN), Arc(129f, 163f, 80f, 7f, YELLOW)), 163f,
-            listOf(55f to Col.WHITE, 62f to CYAN, 74f to CYAN), "Vr 55  Vx 62  Vy 74")
-        Kind.HELI -> AsiCfg("KNOTS", 1f, 150f, 20, 20, listOf(Arc(0f, 130f, 80f, 7f, GREEN)), 130f,
-            listOf(55f to CYAN), "Vy 55  VNE 130")
+            Arc(33f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(44f, 129f, 80f, 7f, GREEN), Arc(129f, 163f, 80f, 7f, YELLOW)), 163f)
+        Kind.HELI -> AsiCfg("KNOTS", 1f, 150f, 20, 20, listOf(Arc(0f, 130f, 80f, 7f, GREEN)), 130f)
         Kind.GLIDER -> AsiCfg("KM/H", 1.852f, 300f, 40, 20, listOf(
-            Arc(70f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(75f, 180f, 80f, 7f, GREEN), Arc(180f, 280f, 80f, 7f, YELLOW)), 280f,
-            listOf(95f to CYAN, 180f to YELLOW), "Vopt 95  VRA 180  VNE 280")
+            Arc(70f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(75f, 180f, 80f, 7f, GREEN), Arc(180f, 280f, 80f, 7f, YELLOW)), 280f)
     }
     private val metricAlt = kind == Kind.GLIDER
     private var gMax = 1f
@@ -77,7 +74,6 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         const val SKY = 0xFF2F7FCF.toInt()
         const val EARTH = 0xFF6E4320.toInt()
         const val LABEL = 0xFFD8D8D8.toInt()
-        const val CYAN = 0xFF33DDFF.toInt()
     }
 
     private val panelPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -230,10 +226,6 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
             }
             v += minor
         }
-        // znaczniki prędkości charakterystycznych
-        for ((v, col) in cfg.marks) {
-            p.radial(c, 0f, 0f, asiAngle(v), 88f, 96f, col, 3f)
-        }
         p.text(c, "AIRSPEED", 0f, -26f, 10f, LABEL)
         p.text(c, cfg.unit, 0f, 28f, 10f, LABEL)
         // cyfrowy odczyt prędkości względem ziemi
@@ -244,7 +236,6 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         } else {
             p.text(c, "NO GPS", 0f, 52f, 11f, ORANGE)
         }
-        p.text(c, cfg.legend, 0f, 76f, 8f, LABEL)
         needle(c, asiAngle(if (d.speedValid) d.speedKt * cfg.factor else 0f), 86f, 3.5f, Col.WHITE)
         hub(c)
     }
@@ -396,8 +387,6 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         if (d.attValid) {
             p.text(c, String.format(Locale.US, "%03d", mod(d.heading.roundToInt(), 360)), 0f, 60f, 16f,
                 Col.WHITE, bold = true)
-            p.text(c, if (d.headingMagnetic) "MAG" else "REL", 0f, 82f, 8f,
-                if (d.headingMagnetic) LABEL else ORANGE)
         } else {
             p.text(c, "OFF", 0f, 60f, 14f, ORANGE, bold = true)
         }

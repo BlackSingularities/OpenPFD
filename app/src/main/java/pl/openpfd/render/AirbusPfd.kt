@@ -66,7 +66,6 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         drawHeading(c, d)
         drawFma(c, d)
         drawBaro(c, d)
-        drawGsTas(c, d)
     }
 
     // ---------------------------------------------------------------- horyzont
@@ -127,12 +126,28 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         }
         c.restore()
 
+        drawPitchChevrons(c, d)
         drawRollScale(c, d)
         drawAircraft(c)
         if (d.raValid && d.raFt < 2500f) {
             val ra = if (d.raFt < 50f) d.raFt.roundToInt() else (d.raFt / 10f).roundToInt() * 10
             p.text(c, ra.toString(), CX, 728f, 48f, if (d.raFt < 200f) Col.AMBER else GREEN)
         }
+    }
+
+    /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
+        if (d.pitch <= 30f && d.pitch >= -20f) return
+        val dir = if (d.pitch > 0f) 1f else -1f
+        c.save()
+        c.clipPath(attClip)
+        c.rotate(-d.roll, CX, CY)
+        for (k in 1..2) {
+            val y = CY + dir * (90f + k * 70f)
+            p.line(c, CX - 72, y + dir * 46, CX, y, Col.RED, 6f)
+            p.line(c, CX, y, CX + 72, y + dir * 46, Col.RED, 6f)
+        }
+        c.restore()
     }
 
     private fun bird(c: Canvas, x: Float, y: Float, color: Int) {
@@ -392,23 +407,8 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         }
         if (d.hasTrack) p.text(c, "TRACK", 512f, y1, sz, GREEN)
         else if (flying) p.text(c, "HDG", 512f, y1, sz, GREEN)
-        if (d.gpsFix) {
-            p.text(c, "GPS", 710f, y1, sz, Col.WHITE)
-            p.text(c, "PRIMARY", 710f, y2, sz, Col.WHITE)
-        }
         p.text(c, vr.fd, 902f, y2, sz, Col.WHITE)
         if (flying && vr.athr.isNotEmpty()) p.text(c, vr.athr, 902f, 136f, sz, Col.WHITE)
-    }
-
-    // ---------------------------------------------------------------- GS / TAS
-    private fun drawGsTas(c: Canvas, d: FlightData) {
-        val x = 18f
-        if (d.speedValid) p.text(c, "GS " + d.speedKt.roundToInt(), x, 830f, 32f, Col.WHITE, Paint.Align.LEFT)
-        if (!d.tasKt.isNaN()) p.text(c, "TAS " + d.tasKt.roundToInt(), x, 870f, 32f, Col.WHITE, Paint.Align.LEFT)
-        if (d.hasTrack && abs(d.drift) >= 1f) {
-            val side = if (d.drift > 0) "R" else "L"
-            p.text(c, "DRIFT " + abs(d.drift).roundToInt() + "°" + side, x, 958f, 28f, CYAN, Paint.Align.LEFT)
-        }
     }
 
     // ---------------------------------------------------------------- baro

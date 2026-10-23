@@ -223,7 +223,7 @@ class B787Pfd : PfdRenderer {
             l - 20, CY - 30, r + 6, CY - 30, r + 6, CY - 16, r + 26, CY,
             r + 6, CY + 16, r + 6, CY + 30, l - 20, CY + 30)
         p.text(c, s.roundToInt().toString(), r, CY, 46f, Col.WHITE, Paint.Align.RIGHT)
-        p.text(c, "GS " + s.roundToInt(), l - 16, t - 26, 30f, Col.WHITE, Paint.Align.LEFT)
+        p.text(c, "GS " + s.roundToInt(), l - 16, t - 14, 28f, Col.WHITE, Paint.Align.LEFT)
     }
 
     // ---------------------------------------------------------------- wysokość

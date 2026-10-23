@@ -136,12 +136,28 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         }
         c.restore()
 
+        drawPitchChevrons(c, d)
         drawRollScale(c, d)
         drawAircraft(c)
         if (d.raValid && d.raFt < 2500f) {
             val ra = if (d.raFt < 100f) d.raFt.roundToInt() else (d.raFt / 10f).roundToInt() * 10
             p.text(c, ra.toString(), BX, BY + 175f, 46f, if (d.raFt < 200f) Col.AMBER else Col.WHITE)
         }
+    }
+
+    /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
+        if (d.pitch <= 30f && d.pitch >= -20f) return
+        val dir = if (d.pitch > 0f) 1f else -1f
+        c.save()
+        c.clipPath(attClip)
+        c.rotate(-d.roll, BX, BY)
+        for (k in 1..2) {
+            val y = BY + dir * (70f + k * 60f)
+            p.line(c, BX - 64, y + dir * 40, BX, y, Col.RED, 6f)
+            p.line(c, BX, y, BX + 64, y + dir * 40, Col.RED, 6f)
+        }
+        c.restore()
     }
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
@@ -239,12 +255,17 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
             mod(kk, 10).toString()
         }
 
-        // GS
-        p.text(c, "GS", 30f, 830f, 34f, Col.WHITE, Paint.Align.LEFT)
-        p.text(c, s.roundToInt().toString(), 82f, 828f, 48f, Col.WHITE, Paint.Align.LEFT)
+        // GS i TAS nad taśmą, liczba Macha pod nią
+        p.text(c, "GS", 22f, 128f, 30f, Col.WHITE, Paint.Align.LEFT)
+        p.text(c, s.roundToInt().toString(), 70f, 126f, 40f, Col.WHITE, Paint.Align.LEFT)
         if (!d.tasKt.isNaN()) {
-            p.text(c, "TAS", 30f, 878f, 30f, Col.WHITE, Paint.Align.LEFT)
-            p.text(c, d.tasKt.roundToInt().toString(), 92f, 878f, 38f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, "TAS", 22f, 90f, 26f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, d.tasKt.roundToInt().toString(), 84f, 89f, 32f, Col.WHITE, Paint.Align.LEFT)
+            val mach = d.tasKt / 600f
+            if (mach >= 0.4f) {
+                p.text(c, String.format(Locale.US, ".%03d", (mach * 1000).roundToInt().coerceAtMost(999)),
+                    (l + r) / 2, b + 36, 38f, Col.WHITE)
+            }
         }
     }
 
