@@ -28,16 +28,25 @@ import kotlin.math.roundToInt
  */
 @SuppressLint("ViewConstructor")
 class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
-    enum class Style(val label: String, val alerts: AlertProfile) {
-        AIRBUS("A320", AlertProfile(350f, 115f, false)),
-        ATR("ATR 72", AlertProfile(250f, 95f, false)),
-        BOEING("737", AlertProfile(340f, 115f, false)),
-        B787("787", AlertProfile(350f, 110f, false)),
-        EMBRAER("E190", AlertProfile(320f, 105f, false)),
-        GARMIN("G1000", AlertProfile(163f, 48f, false)),
-        CESSNA("C172", AlertProfile(163f, 48f, false)),
-        HELI("R44", AlertProfile(130f, 0f, false)),
-        GLIDER("Szybowiec", AlertProfile(151f, 38f, true)),
+    companion object {
+        const val KOMUNIKACYJNE = "Samoloty komunikacyjne"
+        const val OGOLNE = "Lotnictwo ogólne"
+        const val WIRNIKOWE = "Śmigłowce"
+        const val SZYBOWCE = "Szybowce"
+    }
+
+    enum class Style(
+        val label: String, val alerts: AlertProfile, val group: String, val desc: String,
+    ) {
+        AIRBUS("A320", AlertProfile(350f, 115f, false), KOMUNIKACYJNE, "Airbus · okrągły horyzont"),
+        ATR("ATR 72", AlertProfile(250f, 95f, false), KOMUNIKACYJNE, "Thales · róża kursowa"),
+        BOEING("737", AlertProfile(340f, 115f, false), KOMUNIKACYJNE, "Boeing CDS · łuk kursu"),
+        B787("787", AlertProfile(350f, 110f, false), KOMUNIKACYJNE, "Dreamliner · pełny horyzont"),
+        EMBRAER("E190", AlertProfile(320f, 105f, false), KOMUNIKACYJNE, "Primus Epic · pola danych"),
+        GARMIN("G1000", AlertProfile(163f, 48f, false), OGOLNE, "Garmin · teren 3D i HSI"),
+        CESSNA("C172", AlertProfile(163f, 48f, false), OGOLNE, "Analogowy six-pack"),
+        HELI("R44", AlertProfile(130f, 0f, false), WIRNIKOWE, "Zegary z radiowysokością"),
+        GLIDER("Szybowiec", AlertProfile(151f, 38f, true), SZYBOWCE, "Wariometr TE · km/h"),
     }
 
     var style = Style.AIRBUS

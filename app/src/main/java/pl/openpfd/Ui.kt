@@ -54,6 +54,33 @@ object Ui {
         setTextColor(if (active) INK else Color.WHITE)
     }
 
+    /** Kafelek wyboru: tytuł i krótki opis; aktywny = biały blok. */
+    fun card(
+        ctx: Context, title: String, desc: String, active: Boolean, onClick: () -> Unit,
+    ): LinearLayout = LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        val h = ctx.dp(14f)
+        val v = ctx.dp(11f)
+        setPadding(h, v, h, v)
+        background = shape(if (active) Color.WHITE else PANEL_HIGH, ctx.dp(18f).toFloat())
+        addView(TextView(ctx).apply {
+            text = title
+            textSize = 15f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setTextColor(if (active) INK else Color.WHITE)
+        })
+        addView(TextView(ctx).apply {
+            text = desc
+            textSize = 11f
+            setTextColor(if (active) 0x99000000.toInt() else TEXT_DIM)
+            setPadding(0, ctx.dp(2f), 0, 0)
+        })
+        setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            onClick()
+        }
+    }
+
     fun label(ctx: Context, text: String, size: Float = 13f, color: Int = TEXT_DIM): TextView =
         TextView(ctx).apply {
             this.text = text

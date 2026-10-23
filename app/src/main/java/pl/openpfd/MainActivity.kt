@@ -32,7 +32,7 @@ class MainActivity : Activity() {
     private lateinit var topScroll: android.widget.HorizontalScrollView
     private lateinit var root: FrameLayout
     private lateinit var topBar: LinearLayout
-    private val stylePills = HashMap<PfdView.Style, TextView>()
+    private lateinit var styleButton: TextView
     private var sheet: View? = null
     private var banner: View? = null
 
@@ -159,11 +159,8 @@ class MainActivity : Activity() {
             val p = dp(4f)
             setPadding(p, p, p, p)
         }
-        for (s in PfdView.Style.entries) {
-            val pv = Ui.pill(this, s.label, s == pfd.style) { setStyle(s) }
-            stylePills[s] = pv
-            topBar.addView(pv, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(4f) })
-        }
+        styleButton = Ui.pill(this, styleButtonText(), true) { openPicker() }
+        topBar.addView(styleButton, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(4f) })
         topBar.addView(Ui.pill(this, "⚙") { openSheet() })
         topScroll = android.widget.HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
@@ -184,18 +181,47 @@ class MainActivity : Activity() {
         handler.postDelayed(hideChrome, 4000L)
     }
 
+    private fun styleButtonText() = "✈  " + pfd.style.label + "  ▾"
+
     private fun setStyle(s: PfdView.Style) {
         pfd.style = s
-        stylePills.forEach { (k, v) -> v.setActive(k == s) }
+        styleButton.text = styleButtonText()
+        styleButton.setActive(true)
         getSharedPreferences("openpfd", MODE_PRIVATE).edit().putString("style", s.name).apply()
         if (sheet == null) showChrome()
     }
 
-    // ---------------------------------------------------------------- arkusz ustawień
+    // ---------------------------------------------------------------- wybór przyrządu
 
-    private fun openSheet() {
+    /** Pełna lista przyrządów pogrupowana według rodzaju statku powietrznego. */
+    private fun openPicker() {
         if (sheet != null) return
         handler.removeCallbacks(hideChrome)
+        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        PfdView.Style.entries.groupBy { it.group }.forEach { (group, items) ->
+            content.addView(Ui.label(this, group).apply { setPadding(0, dp(14f), 0, dp(8f)) })
+            items.chunked(2).forEach { pair ->
+                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                pair.forEach { s ->
+                    row.addView(Ui.card(this, s.label, s.desc, s == pfd.style) {
+                        setStyle(s)
+                        closeSheet()
+                    }, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                        marginEnd = dp(8f)
+                        bottomMargin = dp(8f)
+                    })
+                }
+                if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, -2, 1f))
+                content.addView(row)
+            }
+        }
+        showSheet("Wybierz przyrząd", content)
+    }
+
+    // ---------------------------------------------------------------- arkusz ustawień
+
+    /** Wspólny dolny arkusz: przyciemnienie, panel z uchwytem, tytuł i przewijana treść. */
+    private fun showSheet(title: String, content: View) {
         val scrim = FrameLayout(this).apply {
             setBackgroundColor(0x99000000.toInt())
             setOnClickListener { closeSheet() }
@@ -213,15 +239,33 @@ class MainActivity : Activity() {
                 bottomMargin = dp(12f)
             })
         panel.addView(TextView(this).apply {
-            text = "Ustawienia"
+            text = title
             textSize = 20f
             setTextColor(Color.WHITE)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         })
+        panel.addView(ScrollView(this).apply { addView(content) })
 
+        val maxW = dp(560f)
+        val w = if (resources.displayMetrics.widthPixels > maxW) maxW else ViewGroup.LayoutParams.MATCH_PARENT
+        scrim.addView(panel, FrameLayout.LayoutParams(w, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+            topMargin = dp(48f)
+        })
+        root.addView(scrim, FrameLayout.LayoutParams(-1, -1))
+        panel.translationY = 600f * resources.displayMetrics.density
+        panel.animate().translationY(0f).setDuration(220)
+        sheet = scrim
+    }
+
+    private fun openSheet() {
+        if (sheet != null) return
+        handler.removeCallbacks(hideChrome)
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.addView(Ui.segmented(this, "Przyrząd", PfdView.Style.entries.map { it.label },
-            pfd.style.ordinal) { setStyle(PfdView.Style.entries[it]) })
+        content.addView(Ui.label(this, "Przyrząd").apply { setPadding(0, dp(10f), 0, dp(8f)) })
+        content.addView(Ui.card(this, pfd.style.label, pfd.style.desc, false) {
+            closeSheet()
+            styleButton.post { openPicker() }
+        })
         content.addView(Ui.segmented(this, "Nastawa wysokościomierza", listOf("QNH", "STD 1013"),
             if (hub.std) 1 else 0) { hub.std = it == 1 })
         content.addView(Ui.segmented(this, "Jednostki ciśnienia", listOf("hPa", "inHg"),
@@ -288,18 +332,7 @@ class MainActivity : Activity() {
             setOnClickListener { openUrl("https://redzikowski.com") }
         })
         content.addView(Ui.pill(this, "☕  Postaw kawę") { openUrl("https://buycoffee.to/adamredzikowski") })
-
-        panel.addView(ScrollView(this).apply { addView(content) })
-
-        val maxW = dp(560f)
-        val w = if (resources.displayMetrics.widthPixels > maxW) maxW else ViewGroup.LayoutParams.MATCH_PARENT
-        scrim.addView(panel, FrameLayout.LayoutParams(w, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
-            topMargin = dp(48f)
-        })
-        root.addView(scrim, FrameLayout.LayoutParams(-1, -1))
-        panel.translationY = 600f * resources.displayMetrics.density
-        panel.animate().translationY(0f).setDuration(220)
-        sheet = scrim
+        showSheet("Ustawienia", content)
     }
 
     private fun openUrl(url: String) {
