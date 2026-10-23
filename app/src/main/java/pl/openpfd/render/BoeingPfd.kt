@@ -15,8 +15,7 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
-/** PFD w stylu Boeinga 737NG/MAX (Common Display System). */
-/** Wariant kolorystyki i ograniczeń: Boeing 737/787 (CDS) i Embraer E-Jet (Primus Epic). */
+/** Wariant kolorystyki i ograniczeń PFD Boeinga 737 (Common Display System). */
 data class BoeingVariant(
     val skyTop: Int, val sky: Int, val ground: Int, val groundBottom: Int,
     val tape: Int, val vsiBg: Int, val rose: Int, val fmaBg: Int, val vmo: Float, val fd: String,
@@ -24,10 +23,6 @@ data class BoeingVariant(
     companion object {
         val B737 = BoeingVariant(0xFF1A8FD8.toInt(), 0xFF1A8FD8.toInt(), 0xFF8A4A17.toInt(), 0xFF8A4A17.toInt(),
             0xFF5E5F63.toInt(), 0xFF4A4B4F.toInt(), 0xFF55565A.toInt(), 0xFF3A3B3E.toInt(), 340f, "FD")
-        val B787 = BoeingVariant(0xFF0A4FA8.toInt(), 0xFF3C9CEC.toInt(), 0xFF915121.toInt(), 0xFF4A260C.toInt(),
-            0xFF3E4146.toInt(), 0xFF33363B.toInt(), 0xFF3A3D42.toInt(), 0xFF202226.toInt(), 350f, "FD")
-        val E190 = BoeingVariant(0xFF0F6CC4.toInt(), 0xFF2F95E6.toInt(), 0xFF7A4A1E.toInt(), 0xFF5A3410.toInt(),
-            0xFF2A2C30.toInt(), 0xFF2A2C30.toInt(), 0xFF2E3034.toInt(), 0xFF000000.toInt(), 320f, "FD 1")
     }
 }
 
@@ -43,6 +38,7 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
 
         const val GREEN = 0xFF3EEA4C.toInt()
         const val CYAN = 0xFF33DDFF.toInt()
+        const val MAGENTA = 0xFFEE55DD.toInt()
 
         const val RCX = BX
         const val RCY = 1215f
@@ -70,7 +66,6 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         drawCompass(c, d)
         drawFma(c, d)
         drawBaro(c, d)
-        drawWind(c, d)
     }
 
     // ---------------------------------------------------------------- ADI
@@ -394,8 +389,10 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         c.restore()
         // wskaźnik kursu
         p.poly(c, 0, Col.WHITE, 3f, RCX, RCY - RAD + 2, RCX - 14, RCY - RAD - 22, RCX + 14, RCY - RAD - 22)
-        p.text(c, if (d.headingMagnetic) "MAG" else "REL", RCX + 150, 945f, 32f, GREEN)
-        p.text(c, String.format(Locale.US, "%03d", mod(h.roundToInt(), 360)), RCX - 150, 945f, 36f, Col.WHITE)
+        val hdg = String.format(Locale.US, "%03d", mod(h.roundToInt(), 360))
+        p.text(c, hdg, RCX - 14, 968f, 38f, MAGENTA, Paint.Align.RIGHT)
+        p.text(c, if (d.headingMagnetic) "MAG" else "REL",
+            RCX + 14, 968f, 32f, if (d.headingMagnetic) GREEN else Col.AMBER, Paint.Align.LEFT)
     }
 
     // ---------------------------------------------------------------- FMA
@@ -409,21 +406,6 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         if (d.altValid && abs(d.vsFpm) >= 300f) p.text(c, "V/S", 650f, 46f, 38f, GREEN)
         else if (flying) p.text(c, "ALT HOLD", 650f, 46f, 38f, GREEN)
         p.text(c, vr.fd, BX, 128f, 48f, Col.WHITE)
-    }
-
-    // ---------------------------------------------------------------- wiatr
-    private fun drawWind(c: Canvas, d: FlightData) {
-        if (!d.windValid) return
-        val txt = String.format(Locale.US, "%03d°/%d", mod(d.windDir.roundToInt(), 360), d.windKt.roundToInt())
-        p.text(c, txt, 30f, 930f, 32f, Col.WHITE, Paint.Align.LEFT)
-        c.save()
-        c.rotate(d.windDir - d.heading + 180f, 200f, 930f)
-        p.line(c, 200f, 952f, 200f, 908f, Col.WHITE, 3.5f)
-        p.poly(c, Col.WHITE, 0, 0f, 200f, 954f, 192f, 938f, 208f, 938f)
-        c.restore()
-        if (d.hasTrack && abs(d.drift) >= 1f) {
-            p.text(c, "DA " + abs(d.drift).roundToInt() + (if (d.drift > 0) "R" else "L"), 30f, 972f, 28f, GREEN, Paint.Align.LEFT)
-        }
     }
 
     // ---------------------------------------------------------------- baro

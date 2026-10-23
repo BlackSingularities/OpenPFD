@@ -66,7 +66,7 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         drawHeading(c, d)
         drawFma(c, d)
         drawBaro(c, d)
-        drawWind(c, d)
+        drawGsTas(c, d)
     }
 
     // ---------------------------------------------------------------- horyzont
@@ -400,20 +400,11 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         if (flying && vr.athr.isNotEmpty()) p.text(c, vr.athr, 902f, 136f, sz, Col.WHITE)
     }
 
-    // ---------------------------------------------------------------- GS / TAS / wiatr
-    private fun drawWind(c: Canvas, d: FlightData) {
+    // ---------------------------------------------------------------- GS / TAS
+    private fun drawGsTas(c: Canvas, d: FlightData) {
         val x = 18f
         if (d.speedValid) p.text(c, "GS " + d.speedKt.roundToInt(), x, 830f, 32f, Col.WHITE, Paint.Align.LEFT)
         if (!d.tasKt.isNaN()) p.text(c, "TAS " + d.tasKt.roundToInt(), x, 870f, 32f, Col.WHITE, Paint.Align.LEFT)
-        if (d.windValid) {
-            val txt = String.format(Locale.US, "%03d°/%d", mod(d.windDir.roundToInt(), 360), d.windKt.roundToInt())
-            p.text(c, txt, x, 915f, 32f, GREEN, Paint.Align.LEFT)
-            c.save()
-            c.rotate(d.windDir - d.heading + 180f, 172f, 915f)
-            p.line(c, 172f, 935f, 172f, 895f, GREEN, 4f)
-            p.poly(c, GREEN, 0, 0f, 172f, 935f, 164f, 920f, 180f, 920f)
-            c.restore()
-        }
         if (d.hasTrack && abs(d.drift) >= 1f) {
             val side = if (d.drift > 0) "R" else "L"
             p.text(c, "DRIFT " + abs(d.drift).roundToInt() + "°" + side, x, 958f, 28f, CYAN, Paint.Align.LEFT)

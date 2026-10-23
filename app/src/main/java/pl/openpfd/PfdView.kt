@@ -13,6 +13,8 @@ import android.view.View
 import pl.openpfd.render.AirbusPfd
 import pl.openpfd.render.AirbusVariant
 import pl.openpfd.render.AtrPfd
+import pl.openpfd.render.B787Pfd
+import pl.openpfd.render.E190Pfd
 import pl.openpfd.render.BoeingPfd
 import pl.openpfd.render.BoeingVariant
 import pl.openpfd.render.CessnaPanel
@@ -47,8 +49,8 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
         Style.AIRBUS to AirbusPfd(AirbusVariant.A320),
         Style.ATR to AtrPfd(),
         Style.BOEING to BoeingPfd(BoeingVariant.B737),
-        Style.B787 to BoeingPfd(BoeingVariant.B787),
-        Style.EMBRAER to BoeingPfd(BoeingVariant.E190),
+        Style.B787 to B787Pfd(),
+        Style.EMBRAER to E190Pfd(),
         Style.GARMIN to GarminPfd(),
     )
     private val panels: Map<Style, CessnaPanel> = mapOf(

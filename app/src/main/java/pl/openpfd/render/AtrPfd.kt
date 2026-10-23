@@ -405,17 +405,6 @@ class AtrPfd : PfdRenderer {
             p.circle(c, RX, RY - RR + 34, 12f, GREEN, 3f)
             c.restore()
         }
-        // strzałka kierunku wiatru (magenta) – „skąd wieje”
-        if (d.windValid) {
-            c.save()
-            c.rotate(d.windDir + 180f, RX, RY)
-            p.poly(c, 0, MAGENTA, 3.5f,
-                RX, RY - RR + 6, RX - 14, RY - RR + 34, RX - 5, RY - RR + 34,
-                RX - 5, RY - 46, RX + 5, RY - 46, RX + 5, RY - RR + 34, RX + 14, RY - RR + 34)
-            p.poly(c, 0, MAGENTA, 3.5f,
-                RX - 5, RY + 46, RX + 5, RY + 46, RX + 5, RY + RR - 6, RX - 5, RY + RR - 6)
-            c.restore()
-        }
         c.restore()
 
         // skala odchylenia i symbol samolotu
@@ -442,10 +431,6 @@ class AtrPfd : PfdRenderer {
         p.text(c, if (d.speedValid) "GS " + d.speedKt.roundToInt() else "GS ---",
             720f, 772f, 26f, GREEN, Paint.Align.LEFT)
         if (!d.tasKt.isNaN()) p.text(c, "TAS " + d.tasKt.roundToInt(), 720f, 800f, 26f, GREEN, Paint.Align.LEFT)
-        if (d.windValid) {
-            p.text(c, String.format(Locale.US, "%03d°/%d", mod(d.windDir.roundToInt(), 360), d.windKt.roundToInt()),
-                720f, 828f, 26f, GREEN, Paint.Align.LEFT)
-        }
         if (!d.oatC.isNaN()) p.text(c, "OAT " + d.oatC.roundToInt() + "°C", 720f, 856f, 26f, GREEN, Paint.Align.LEFT)
 
         p.text(c, if (d.raValid) "TERR" else "TERM", 30f, 868f, 28f, GREEN, Paint.Align.LEFT)
