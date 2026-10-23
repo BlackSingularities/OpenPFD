@@ -22,7 +22,7 @@ Aplikacja na Androida wyświetlająca realistyczny **Primary Flight Display** (A
 - Przycisk **≡** – menu: motyw, kalibracja, hPa/inHg, FPV, aktualizacje.
 
 ## Przyrządy
-A320, A350, ATR 72-600, Boeing 737, 787, Embraer E190, Garmin G1000 z widokiem syntetycznym 3D,
+A320, ATR 72-600, Boeing 737, 787, Embraer E190, Garmin G1000 z widokiem syntetycznym 3D,
 panele analogowe: Cessna 172, Robinson R44 (z G-metrem), szybowiec (wariometr TE w m/s, km/h, metry).
 
 ## Ostrzeżenia

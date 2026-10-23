@@ -28,7 +28,6 @@ import kotlin.math.roundToInt
 class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
     enum class Style(val label: String, val alerts: AlertProfile) {
         AIRBUS("A320", AlertProfile(350f, 115f, false)),
-        A350("A350", AlertProfile(340f, 110f, false)),
         ATR("ATR 72", AlertProfile(250f, 95f, false)),
         BOEING("737", AlertProfile(340f, 115f, false)),
         B787("787", AlertProfile(350f, 110f, false)),
@@ -46,7 +45,6 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
 
     private val squares: Map<Style, PfdRenderer> = mapOf(
         Style.AIRBUS to AirbusPfd(AirbusVariant.A320),
-        Style.A350 to AirbusPfd(AirbusVariant.A350),
         Style.ATR to AtrPfd(),
         Style.BOEING to BoeingPfd(BoeingVariant.B737),
         Style.B787 to BoeingPfd(BoeingVariant.B787),

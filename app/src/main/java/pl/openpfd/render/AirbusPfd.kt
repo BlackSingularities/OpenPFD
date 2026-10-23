@@ -23,12 +23,10 @@ data class AirbusVariant(
     companion object {
         val A320 = AirbusVariant(0xFF1C9AEA.toInt(), 0xFF1C9AEA.toInt(), 0xFF8C4B1D.toInt(), 0xFF8C4B1D.toInt(),
             0xFF5D5D5D.toInt(), 0xFF3F3F3F.toInt(), 350f, "1 FD 2", "A/THR")
-        val A350 = AirbusVariant(0xFF0B5DB8.toInt(), 0xFF3A9BEA.toInt(), 0xFF8E4F22.toInt(), 0xFF4E2A0E.toInt(),
-            0xFF44474C.toInt(), 0xFF2E3135.toInt(), 340f, "1 FD 2", "A/THR")
     }
 }
 
-/** PFD w stylu Airbusa (A320, A350). */
+/** PFD w stylu Airbusa (A320). */
 class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRenderer {
     private val p = Pen()
 
