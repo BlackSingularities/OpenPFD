@@ -7,10 +7,13 @@ import android.graphics.RectF
 import android.graphics.Shader
 import pl.openpfd.FlightData
 import pl.openpfd.angDiff
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** Renderer rysujący na całym ekranie (bez kwadratu). */
@@ -27,25 +30,28 @@ interface FullRenderer {
 class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
     enum class Kind { CESSNA, HELI, GLIDER }
 
-    private enum class G { ASI, AI, ALT, TC, HI, VSI, VARIO, GMETER }
+    private enum class G { ASI, AI, ALT, TC, HI, VSI, VARIO, GMETER, RA }
 
     private data class Arc(val from: Float, val to: Float, val r: Float, val w: Float, val color: Int)
     private data class AsiCfg(
         val unit: String, val factor: Float, val max: Float, val firstLabel: Int, val labelStep: Int,
-        val arcs: List<Arc>, val red: Float,
+        val arcs: List<Arc>, val red: Float, val marks: List<Pair<Float, Int>>, val legend: String,
     )
 
     private val gauges = when (kind) {
         Kind.CESSNA -> listOf(G.ASI, G.AI, G.ALT, G.TC, G.HI, G.VSI)
-        Kind.HELI -> listOf(G.ASI, G.AI, G.ALT, G.GMETER, G.HI, G.VSI)
+        Kind.HELI -> listOf(G.ASI, G.AI, G.ALT, G.RA, G.HI, G.VSI)
         Kind.GLIDER -> listOf(G.ASI, G.VARIO, G.ALT, G.TC, G.HI, G.GMETER)
     }
     private val asiCfg = when (kind) {
         Kind.CESSNA -> AsiCfg("KNOTS", 1f, 200f, 40, 20, listOf(
-            Arc(33f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(44f, 129f, 80f, 7f, GREEN), Arc(129f, 163f, 80f, 7f, YELLOW)), 163f)
-        Kind.HELI -> AsiCfg("KNOTS", 1f, 150f, 20, 20, listOf(Arc(0f, 130f, 80f, 7f, GREEN)), 130f)
+            Arc(33f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(44f, 129f, 80f, 7f, GREEN), Arc(129f, 163f, 80f, 7f, YELLOW)), 163f,
+            listOf(55f to Col.WHITE, 62f to CYAN, 74f to CYAN), "Vr 55  Vx 62  Vy 74")
+        Kind.HELI -> AsiCfg("KNOTS", 1f, 150f, 20, 20, listOf(Arc(0f, 130f, 80f, 7f, GREEN)), 130f,
+            listOf(55f to CYAN), "Vy 55  VNE 130")
         Kind.GLIDER -> AsiCfg("KM/H", 1.852f, 300f, 40, 20, listOf(
-            Arc(70f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(75f, 180f, 80f, 7f, GREEN), Arc(180f, 280f, 80f, 7f, YELLOW)), 280f)
+            Arc(70f, 85f, 86f, 5f, 0xFFF0F0F0.toInt()), Arc(75f, 180f, 80f, 7f, GREEN), Arc(180f, 280f, 80f, 7f, YELLOW)), 280f,
+            listOf(95f to CYAN, 180f to YELLOW), "Vopt 95  VRA 180  VNE 280")
     }
     private val metricAlt = kind == Kind.GLIDER
     private var gMax = 1f
@@ -56,6 +62,9 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
     private var lastHdg = Float.NaN
     private var lastT = 0L
     private var turnRate = 0f
+    private var avgTe = 0f
+    private var lastVarioT = 0L
+    private val clock = SimpleDateFormat("HH:mm", Locale.US)
 
     private companion object {
         const val FACE = 0xFF0E0E0F.toInt()
@@ -68,6 +77,7 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         const val SKY = 0xFF2F7FCF.toInt()
         const val EARTH = 0xFF6E4320.toInt()
         const val LABEL = 0xFFD8D8D8.toInt()
+        const val CYAN = 0xFF33DDFF.toInt()
     }
 
     private val panelPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -88,10 +98,11 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         }
         c.drawRect(0f, 0f, w, h, panelPaint)
 
+        val hb = (h * 0.055f).coerceIn(26f, 64f)
         val cols = if (w >= h) 3 else 2
         val rows = 6 / cols
         val cw = w / cols
-        val ch = h / rows
+        val ch = (h - hb) / rows
         val r = min(cw, ch) * 0.46f
         for (i in 0 until 6) {
             val cx = cw * (i % cols) + cw / 2
@@ -113,11 +124,30 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
                 G.VSI -> vsi(c, d)
                 G.VARIO -> vario(c, d)
                 G.GMETER -> gmeter(c, d)
+                G.RA -> radioAlt(c, d)
             }
             bezelFront(c)
             c.restore()
             screws(c, cx, cy, r)
         }
+        statusBar(c, d, w, h, hb)
+    }
+
+    /** Pasek stanu pod zegarami: pozycja, nastawa ciśnienia, temperatura, czas. */
+    private fun statusBar(c: Canvas, d: FlightData, w: Float, h: Float, hb: Float) {
+        p.rect(c, 0f, h - hb, w, h, 0xFF0C0D0F.toInt())
+        p.line(c, 0f, h - hb, w, h - hb, 0xFF3C3E42.toInt(), 1.5f)
+        val y = h - hb / 2f
+        val sz = (hb * 0.42f).coerceIn(11f, 26f)
+        val gps = if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "GPS · szukanie…"
+        p.text(c, gps, w * 0.02f, y, sz, if (d.gpsFix) LABEL else ORANGE, Paint.Align.LEFT)
+        val baroTxt = if (d.std) "STD 1013" else "QNH " + d.qnh.roundToInt() + " · " + d.qnhSource
+        p.text(c, baroTxt, w * 0.5f, y, sz, LABEL)
+        val right = StringBuilder()
+        if (!d.oatC.isNaN()) right.append(d.oatC.roundToInt()).append("°C   ")
+        if (!d.tasKt.isNaN()) right.append("TAS ").append(d.tasKt.roundToInt()).append("   ")
+        right.append(clock.format(Date()))
+        p.text(c, right.toString(), w * 0.98f, y, sz, LABEL, Paint.Align.RIGHT)
     }
 
     private fun updateTurnRate(d: FlightData) {
@@ -200,9 +230,21 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
             }
             v += minor
         }
+        // znaczniki prędkości charakterystycznych
+        for ((v, col) in cfg.marks) {
+            p.radial(c, 0f, 0f, asiAngle(v), 88f, 96f, col, 3f)
+        }
         p.text(c, "AIRSPEED", 0f, -26f, 10f, LABEL)
-        p.text(c, cfg.unit, 0f, 30f, 10f, LABEL)
-        p.text(c, if (d.speedValid) "GPS GS" else "NO GPS", 0f, 46f, 9f, if (d.speedValid) LABEL else ORANGE)
+        p.text(c, cfg.unit, 0f, 28f, 10f, LABEL)
+        // cyfrowy odczyt prędkości względem ziemi
+        p.rect(c, -34f, 40f, 34f, 64f, 0xFF000000.toInt())
+        p.frame(c, -34f, 40f, 34f, 64f, 0xFF707070.toInt(), 1.5f)
+        if (d.speedValid) {
+            p.text(c, (d.speedKt * cfg.factor).roundToInt().toString(), 0f, 52f, 16f, Col.WHITE, bold = true)
+        } else {
+            p.text(c, "NO GPS", 0f, 52f, 11f, ORANGE)
+        }
+        p.text(c, cfg.legend, 0f, 76f, 8f, LABEL)
         needle(c, asiAngle(if (d.speedValid) d.speedKt * cfg.factor else 0f), 86f, 3.5f, Col.WHITE)
         hub(c)
     }
@@ -292,6 +334,7 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         p.text(c, "L", -66f, 40f, 16f, Col.WHITE, bold = true)
         p.text(c, "R", 66f, 40f, 16f, Col.WHITE, bold = true)
         p.text(c, "TURN COORDINATOR", 0f, -54f, 8.5f, LABEL)
+        p.text(c, String.format(Locale.US, "%+.1f°/s", turnRate), 0f, -34f, 11f, LABEL)
         p.text(c, "2 MIN", 0f, 32f, 10f, LABEL)
         p.text(c, "NO PITCH", 0f, 80f, 7f, LABEL)
         p.text(c, "INFORMATION", 0f, 87f, 7f, LABEL)
@@ -347,7 +390,17 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
             p.poly(c, 0xFFFF55FF.toInt(), 0, 0f, 0f, -74f, 5f, -66f, 0f, -58f, -5f, -66f)
             c.restore()
         }
-        if (!d.attValid) p.text(c, "OFF", 0f, 50f, 14f, ORANGE, bold = true)
+        // okienko cyfrowe kursu
+        p.rect(c, -32f, 48f, 32f, 72f, 0xFF000000.toInt())
+        p.frame(c, -32f, 48f, 32f, 72f, 0xFF707070.toInt(), 1.5f)
+        if (d.attValid) {
+            p.text(c, String.format(Locale.US, "%03d", mod(d.heading.roundToInt(), 360)), 0f, 60f, 16f,
+                Col.WHITE, bold = true)
+            p.text(c, if (d.headingMagnetic) "MAG" else "REL", 0f, 82f, 8f,
+                if (d.headingMagnetic) LABEL else ORANGE)
+        } else {
+            p.text(c, "OFF", 0f, 60f, 14f, ORANGE, bold = true)
+        }
     }
 
     // ---------------------------------------------------------------- wariometr szybowcowy (TE)
@@ -374,7 +427,17 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
             val vs = d.vsFpm * 0.00508f
             if (d.speedValid) vs + d.speedKt * 0.514444f * (d.speedTrend * 0.0514444f) / 9.81f else vs
         }
-        p.text(c, String.format(Locale.US, "%+.1f", te), 22f, 44f, 14f, if (te >= 0f) GREEN else ORANGE, bold = true)
+        // średnie wznoszenie z ostatnich ~20 s (igła pomarańczowa)
+        val now = System.nanoTime()
+        if (lastVarioT != 0L) {
+            val dt = ((now - lastVarioT) / 1e9f).coerceIn(0f, 1f)
+            avgTe += dt / (20f + dt) * (te - avgTe)
+        }
+        lastVarioT = now
+        p.text(c, String.format(Locale.US, "%+.1f", te), 22f, 40f, 14f, if (te >= 0f) GREEN else ORANGE, bold = true)
+        p.text(c, "AVG", 22f, 58f, 8f, LABEL)
+        p.text(c, String.format(Locale.US, "%+.1f", avgTe), 22f, 72f, 12f, ORANGE)
+        needle(c, varioAngle(avgTe), 70f, 2f, ORANGE)
         needle(c, varioAngle(te), 86f, 3.5f, Col.WHITE)
         hub(c)
     }
@@ -398,11 +461,44 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
             }
             k += 5
         }
-        p.text(c, "G", 0f, 30f, 18f, LABEL, bold = true)
-        p.text(c, String.format(Locale.US, "%.2f", d.gLoad), 0f, 52f, 13f, Col.WHITE)
+        p.text(c, "G", 0f, 28f, 18f, LABEL, bold = true)
+        p.text(c, String.format(Locale.US, "%.2f", d.gLoad), 0f, 50f, 13f, Col.WHITE)
+        p.text(c, String.format(Locale.US, "MAX %.1f   MIN %.1f", gMax, gMin), 0f, 70f, 9f, ORANGE)
         needle(c, gAngle(gMax), 70f, 2f, ORANGE)
         needle(c, gAngle(gMin), 70f, 2f, ORANGE)
         needle(c, gAngle(d.gLoad), 86f, 3.5f, Col.WHITE)
+        hub(c)
+    }
+
+    // ---------------------------------------------------------------- radiowysokościomierz
+    private fun raAngle(ft: Float) = ft.coerceIn(0f, 1000f) / 1000f * 320f - 160f
+
+    private fun radioAlt(c: Canvas, d: FlightData) {
+        arcBand(c, raAngle(0f), raAngle(100f), 82f, 6f, RED)
+        var v = 0
+        while (v <= 1000) {
+            val major = v % 100 == 0
+            p.radial(c, 0f, 0f, raAngle(v.toFloat()), if (major) 72f else 80f, 90f, Col.WHITE,
+                if (major) 2.5f else 1.5f)
+            if (v % 200 == 0) {
+                val a = Math.toRadians(raAngle(v.toFloat()).toDouble())
+                p.text(c, (v / 100).toString(), (sin(a) * 58).toFloat(), (-cos(a) * 58).toFloat(), 16f,
+                    Col.WHITE, bold = true)
+            }
+            v += 50
+        }
+        p.text(c, "RADIO ALT", 0f, -32f, 10f, LABEL)
+        p.text(c, "100 FEET", 0f, 30f, 9f, LABEL)
+        p.rect(c, -34f, 42f, 34f, 66f, 0xFF000000.toInt())
+        p.frame(c, -34f, 42f, 34f, 66f, 0xFF707070.toInt(), 1.5f)
+        if (!d.raValid) {
+            p.text(c, "NO TERR", 0f, 54f, 10f, ORANGE)
+            hub(c)
+            return
+        }
+        val ra = d.raFt.coerceAtLeast(0f)
+        p.text(c, ra.roundToInt().toString(), 0f, 54f, 15f, if (ra < 100f) ORANGE else Col.WHITE, bold = true)
+        needle(c, raAngle(ra), 86f, 3.5f, if (ra < 100f) ORANGE else Col.WHITE)
         hub(c)
     }
 
@@ -425,6 +521,13 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         p.text(c, "DOWN", -30f, 40f, 10f, LABEL)
         p.text(c, "VERTICAL SPEED", 22f, -14f, 8f, LABEL)
         p.text(c, "100 FT PER MIN", 22f, 14f, 8f, LABEL)
+        if (d.altValid) {
+            val v100 = (d.vsFpm / 50f).roundToInt() * 50
+            p.text(c, String.format(Locale.US, "%+d", v100), 22f, 44f, 13f,
+                if (abs(d.vsFpm) < 100f) LABEL else Col.WHITE, bold = true)
+        } else {
+            p.text(c, "NO DATA", 22f, 44f, 10f, ORANGE)
+        }
         needle(c, vsiAngle(if (d.altValid) d.vsFpm else 0f), 86f, 3.5f, Col.WHITE)
         hub(c)
     }
