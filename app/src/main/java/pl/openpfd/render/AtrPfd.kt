@@ -24,19 +24,19 @@ class AtrPfd : PfdRenderer {
 
     private companion object {
         // horyzont
-        const val ADI_L = 219f
-        const val ADI_R = 717f
+        const val ADI_L = 160f
+        const val ADI_R = 600f
         const val ADI_T = 100f
         const val ADI_B = 573f
-        const val CX = 463f
+        const val CX = 380f
         const val CY = 340f
-        const val PPD = 11f           // jednostek na stopień pochylenia
-        const val BALL_R = 253f       // promień jaśniejszej „kuli” horyzontu
+        const val PPD = 10f           // jednostek na stopień pochylenia
+        const val BALL_R = 222f       // promień jaśniejszej „kuli” horyzontu
 
         // róża kursowa
-        const val RX = 463f
-        const val RY = 802f
-        const val RR = 162f
+        const val RX = 380f
+        const val RY = 790f
+        const val RR = 150f
 
         const val SKY = 0xFF2A4FA8.toInt()
         const val GROUND = 0xFF6E4A1E.toInt()
@@ -55,7 +55,9 @@ class AtrPfd : PfdRenderer {
     }
     private val adiClip = Path().apply { addRect(ADI_L, ADI_T, ADI_R, ADI_B, Path.Direction.CW) }
 
-    override val baroRect = RectF(640f, 560f, 860f, 620f)
+    override val vw = 750f
+
+    override val baroRect = RectF(500f, 566f, 710f, 624f)
 
     override fun draw(c: Canvas, d: FlightData) {
         drawFma(c, d)
@@ -70,16 +72,16 @@ class AtrPfd : PfdRenderer {
 
     // ---------------------------------------------------------------- FMA
     private fun drawFma(c: Canvas, d: FlightData) {
-        for (x in floatArrayOf(255f, 455f, 625f, 715f)) p.line(c, x, 6f, x, 56f, GREY, 2.5f)
+        for (x in floatArrayOf(190f, 340f, 468f, 536f)) p.line(c, x, 6f, x, 56f, GREY, 2.5f)
         val y = 26f
         val sz = 28f
         val flying = d.speedValid && d.speedKt > 30f
-        if (flying) p.text(c, if (d.hasTrack) "TRK HOLD" else "HDG HOLD", 352f, y, sz, GREEN)
-        if (d.altValid) p.text(c, if (abs(d.vsFpm) >= 300f) "V/S" else "ALT", 540f, y, sz, GREEN)
-        p.text(c, "AP", 748f, y, sz, GREEN)
-        p.text(c, "|", 776f, y, sz, GREY)
-        p.text(c, "FD", 804f, y, sz, GREEN)
-        if (d.gpsFix) p.text(c, "←", 860f, y, sz, GREEN)
+        if (flying) p.text(c, if (d.hasTrack) "TRK HOLD" else "HDG HOLD", 264f, y, sz, GREEN)
+        if (d.altValid) p.text(c, if (abs(d.vsFpm) >= 300f) "V/S" else "ALT", 404f, y, sz, GREEN)
+        p.text(c, "AP", 562f, y, sz, GREEN)
+        p.text(c, "|", 583f, y, sz, GREY)
+        p.text(c, "FD", 604f, y, sz, GREEN)
+        if (d.gpsFix) p.text(c, "←", 646f, y, sz, GREEN)
     }
 
     // ---------------------------------------------------------------- horyzont
@@ -213,8 +215,8 @@ class AtrPfd : PfdRenderer {
 
     // ---------------------------------------------------------------- prędkość
     private fun drawSpeed(c: Canvas, d: FlightData) {
-        val l = 116f
-        val r = 199f
+        val l = 58f
+        val r = 140f
         val t = 120f
         val b = 541f
         val k = 4.3f
@@ -271,8 +273,8 @@ class AtrPfd : PfdRenderer {
 
     // ---------------------------------------------------------------- wysokość
     private fun drawAltitude(c: Canvas, d: FlightData) {
-        val l = 733f
-        val r = 822f
+        val l = 608f
+        val r = 684f
         val t = 120f
         val b = 541f
         val k = 0.43f
@@ -309,11 +311,11 @@ class AtrPfd : PfdRenderer {
 
         // okno odczytu: setki + bęben 20 ft, wchodzące na pole wariometru
         p.poly(c, Col.BLACK, Col.WHITE, 3f,
-            l - 6, CY - 30, 905f, CY - 30, 905f, CY + 30, l - 6, CY + 30)
+            l - 6, CY - 30, 744f, CY - 30, 744f, CY + 30, l - 6, CY + 30)
         val hundreds = floor(a / 100f).toInt()
         p.text(c, if (hundreds < 0) "-" + abs(hundreds) else hundreds.toString(),
-            860f, CY, 44f, GREEN, Paint.Align.RIGHT)
-        p.drum(c, 862f, CY - 28, 903f, CY + 28, a / 20f, 26f, 26f, GREEN, 883f, Paint.Align.CENTER) { kk ->
+            700f, CY, 44f, GREEN, Paint.Align.RIGHT)
+        p.drum(c, 702f, CY - 28, 742f, CY + 28, a / 20f, 26f, 26f, GREEN, 722f, Paint.Align.CENTER) { kk ->
             String.format(Locale.US, "%02d", mod(kk * 20, 100))
         }
     }
@@ -330,8 +332,8 @@ class AtrPfd : PfdRenderer {
     }
 
     private fun drawVsi(c: Canvas, d: FlightData) {
-        val l = 826f
-        val r = 905f
+        val l = 688f
+        val r = 744f
         p.rect(c, l, 120f, r, 541f, TAPE)
         p.frame(c, l, 120f, r, 541f, GREY, 2.5f)
         for (v in intArrayOf(500, 1000, 2000, 6000)) {
@@ -339,7 +341,7 @@ class AtrPfd : PfdRenderer {
                 val y = vy((sg * v).toFloat())
                 val len = if (v == 500) 10f else 18f
                 p.line(c, l + 2, y, l + 2 + len, y, Col.WHITE, 3f)
-                if (v != 500) p.text(c, (v / 1000).toString(), l + 40, y, 26f, Col.WHITE)
+                if (v != 500) p.text(c, (v / 1000).toString(), l + 38, y, 24f, Col.WHITE)
             }
         }
         if (!d.altValid) {
@@ -359,20 +361,20 @@ class AtrPfd : PfdRenderer {
     private fun drawHeadingLine(c: Canvas, d: FlightData) {
         val y = 596f
         if (d.attValid) {
-            p.text(c, "HDG", 222f, y, 30f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, "HDG", 162f, y, 30f, Col.WHITE, Paint.Align.LEFT)
             val h = mod(d.heading.roundToInt(), 360)
-            p.text(c, String.format(Locale.US, "%03d°", h), 292f, y, 32f, CYAN, Paint.Align.LEFT)
-            if (!d.headingMagnetic) p.text(c, "REL", 390f, y, 26f, Col.AMBER, Paint.Align.LEFT)
+            p.text(c, String.format(Locale.US, "%03d°", h), 232f, y, 32f, CYAN, Paint.Align.LEFT)
+            if (!d.headingMagnetic) p.text(c, "REL", 324f, y, 26f, Col.AMBER, Paint.Align.LEFT)
         } else {
-            p.text(c, "HDG", 222f, y, 30f, Col.RED, Paint.Align.LEFT)
+            p.text(c, "HDG", 162f, y, 30f, Col.RED, Paint.Align.LEFT)
         }
         if (d.std) {
-            p.text(c, "STD", 717f, y, 32f, CYAN, Paint.Align.RIGHT)
+            p.text(c, "STD", 600f, y, 32f, CYAN, Paint.Align.RIGHT)
         } else {
-            p.text(c, d.qnh.roundToInt().toString(), 700f, y, 30f, CYAN, Paint.Align.RIGHT)
-            p.text(c, "/", 702f, y, 30f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, d.qnh.roundToInt().toString(), 584f, y, 30f, CYAN, Paint.Align.RIGHT)
+            p.text(c, "/", 586f, y, 30f, Col.WHITE, Paint.Align.LEFT)
             p.text(c, String.format(Locale.US, "%.2f", d.qnh * 0.0295300f),
-                716f, y, 30f, CYAN, Paint.Align.LEFT)
+                600f, y, 30f, CYAN, Paint.Align.LEFT)
         }
     }
 
@@ -433,26 +435,26 @@ class AtrPfd : PfdRenderer {
 
     // ---------------------------------------------------------------- informacje boczne
     private fun drawSideInfo(c: Canvas, d: FlightData) {
-        val xr = 985f
+        val xr = 740f
         p.text(c, "TCAS", xr, 566f, 26f, GREEN, Paint.Align.RIGHT)
         p.text(c, "ABOVE", xr, 594f, 26f, GREEN, Paint.Align.RIGHT)
         p.text(c, "XPDR", xr, 622f, 26f, GREEN, Paint.Align.RIGHT)
         p.text(c, "ALT", xr, 650f, 26f, GREEN, Paint.Align.RIGHT)
 
-        p.text(c, if (d.gpsFix) "GPS1" else "FMS1", 720f, 700f, 26f, MAGENTA, Paint.Align.LEFT)
-        p.line(c, 720f, 718f, 860f, 718f, MAGENTA, 2f)
-        p.text(c, "TRK", 720f, 740f, 26f, Col.WHITE, Paint.Align.LEFT)
+        p.text(c, if (d.gpsFix) "GPS1" else "FMS1", 566f, 700f, 26f, MAGENTA, Paint.Align.LEFT)
+        p.line(c, 566f, 718f, 700f, 718f, MAGENTA, 2f)
+        p.text(c, "TRK", 566f, 740f, 26f, Col.WHITE, Paint.Align.LEFT)
         p.text(c, if (d.hasTrack) String.format(Locale.US, "%03d°", mod(d.track.roundToInt(), 360)) else "---°",
-            792f, 740f, 26f, GREEN, Paint.Align.LEFT)
+            638f, 740f, 26f, GREEN, Paint.Align.LEFT)
         p.text(c, if (d.speedValid) "GS " + d.speedKt.roundToInt() else "GS ---",
-            720f, 772f, 26f, GREEN, Paint.Align.LEFT)
-        if (!d.tasKt.isNaN()) p.text(c, "TAS " + d.tasKt.roundToInt(), 720f, 800f, 26f, GREEN, Paint.Align.LEFT)
-        if (!d.oatC.isNaN()) p.text(c, "OAT " + d.oatC.roundToInt() + "°C", 720f, 856f, 26f, GREEN, Paint.Align.LEFT)
+            566f, 772f, 26f, GREEN, Paint.Align.LEFT)
+        if (!d.tasKt.isNaN()) p.text(c, "TAS " + d.tasKt.roundToInt(), 566f, 800f, 26f, GREEN, Paint.Align.LEFT)
+        if (!d.oatC.isNaN()) p.text(c, "OAT " + d.oatC.roundToInt() + "°C", 566f, 828f, 26f, GREEN, Paint.Align.LEFT)
 
-        p.text(c, if (d.raValid) "TERR" else "TERM", 30f, 868f, 28f, GREEN, Paint.Align.LEFT)
-        p.frame(c, 24f, 928f, 258f, 990f, GREY, 2.5f)
-        p.text(c, "GPS", 40f, 948f, 24f, GREEN, Paint.Align.LEFT)
+        p.text(c, if (d.raValid) "TERR" else "TERM", 24f, 868f, 28f, GREEN, Paint.Align.LEFT)
+        p.frame(c, 18f, 928f, 236f, 990f, GREY, 2.5f)
+        p.text(c, "GPS", 32f, 948f, 24f, GREEN, Paint.Align.LEFT)
         p.text(c, if (d.gpsFix) "±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "szukanie…",
-            40f, 974f, 24f, GREEN, Paint.Align.LEFT)
+            32f, 974f, 24f, GREEN, Paint.Align.LEFT)
     }
 }
