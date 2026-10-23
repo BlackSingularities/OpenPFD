@@ -27,12 +27,12 @@ class B787Pfd : PfdRenderer {
     private companion object {
         const val ADI_T = 62f
         const val ADI_B = 600f
-        const val CX = 500f
+        const val CX = 450f
         const val CY = 318f
         const val PPD = 9.2f
 
         // róża kursowa (łuk)
-        const val RCX = 500f
+        const val RCX = 450f
         const val RCY = 980f
         const val RAD = 300f
 
@@ -54,9 +54,11 @@ class B787Pfd : PfdRenderer {
     private val groundPaint = Paint().apply {
         shader = LinearGradient(0f, CY, 0f, ADI_B, GROUND, GROUND_BOT, Shader.TileMode.CLAMP)
     }
-    private val adiClip = Path().apply { addRect(0f, ADI_T, 1000f, ADI_B, Path.Direction.CW) }
+    private val adiClip = Path().apply { addRect(0f, ADI_T, 900f, ADI_B, Path.Direction.CW) }
 
-    override val baroRect = RectF(780f, 612f, 1000f, 672f)
+    override val vw = 900f
+
+    override val baroRect = RectF(680f, 612f, 900f, 672f)
 
     override fun draw(c: Canvas, d: FlightData) {
         drawAttitude(c, d)
@@ -71,7 +73,7 @@ class B787Pfd : PfdRenderer {
     // ---------------------------------------------------------------- ADI
     private fun drawAttitude(c: Canvas, d: FlightData) {
         if (!d.attValid) {
-            p.rect(c, 0f, ADI_T, 1000f, ADI_B, Col.BLACK)
+            p.rect(c, 0f, ADI_T, 900f, ADI_B, Col.BLACK)
             p.frame(c, CX - 56, CY - 30, CX + 56, CY + 30, Col.AMBER, 3f)
             p.text(c, "ATT", CX, CY, 44f, Col.AMBER)
             drawAircraft(c)
@@ -121,8 +123,24 @@ class B787Pfd : PfdRenderer {
         }
         c.restore()
 
+        drawPitchChevrons(c, d)
         drawRollScale(c, d)
         drawAircraft(c)
+    }
+
+    /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
+        if (d.pitch <= 30f && d.pitch >= -20f) return
+        val dir = if (d.pitch > 0f) 1f else -1f
+        c.save()
+        c.clipPath(adiClip)
+        c.rotate(-d.roll, CX, CY)
+        for (k in 1..2) {
+            val y = CY + dir * (70f + k * 62f)
+            p.line(c, CX - 66, y + dir * 42, CX, y, Col.RED, 6f)
+            p.line(c, CX, y, CX + 66, y + dir * 42, Col.RED, 6f)
+        }
+        c.restore()
     }
 
     private fun bird(c: Canvas, x: Float, y: Float, color: Int) {
@@ -134,7 +152,7 @@ class B787Pfd : PfdRenderer {
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
         c.save()
-        c.clipRect(0f, ADI_T, 1000f, ADI_B)
+        c.clipRect(0f, ADI_T, 900f, ADI_B)
         val r = 232f
         for (a in intArrayOf(10, 20, 30, 45, 60)) {
             for (s in intArrayOf(-1, 1)) {
@@ -228,8 +246,8 @@ class B787Pfd : PfdRenderer {
 
     // ---------------------------------------------------------------- wysokość
     private fun drawAltitude(c: Canvas, d: FlightData) {
-        val l = 790f
-        val r = 898f
+        val l = 690f
+        val r = 798f
         val t = 92f
         val b = 560f
         val k = 0.52f
@@ -282,7 +300,7 @@ class B787Pfd : PfdRenderer {
     }
 
     private fun drawVsi(c: Canvas, d: FlightData) {
-        val l = 910f
+        val l = 810f
         p.line(c, l, 110f, l, 545f, GREY, 2.5f)
         for (v in intArrayOf(500, 1000, 2000, 6000)) {
             for (sg in intArrayOf(-1, 1)) {
@@ -296,7 +314,7 @@ class B787Pfd : PfdRenderer {
         val vs = d.vsFpm
         val col = if (abs(vs) > 2000f) Col.AMBER else Col.WHITE
         c.save()
-        c.clipRect(l - 60, 100f, 1000f, 555f)
+        c.clipRect(l - 60, 100f, 900f, 555f)
         p.line(c, l - 60, CY, l + 36, vy(vs), col, 5f)
         c.restore()
         if (abs(vs) >= 400f) {
@@ -308,28 +326,28 @@ class B787Pfd : PfdRenderer {
 
     // ---------------------------------------------------------------- FMA
     private fun drawFma(c: Canvas, d: FlightData) {
-        p.rect(c, 0f, 0f, 1000f, ADI_T, FMA_BG)
-        p.line(c, 0f, ADI_T, 1000f, ADI_T, GREY, 2f)
-        for (x in floatArrayOf(330f, 560f, 790f)) p.line(c, x, 6f, x, ADI_T - 6, GREY, 2f)
+        p.rect(c, 0f, 0f, 900f, ADI_T, FMA_BG)
+        p.line(c, 0f, ADI_T, 900f, ADI_T, GREY, 2f)
+        for (x in floatArrayOf(300f, 505f, 710f)) p.line(c, x, 6f, x, ADI_T - 6, GREY, 2f)
         val flying = d.speedValid && d.speedKt > 30f
         val y = 30f
         val sz = 30f
         if (flying) {
-            p.text(c, "THR REF", 165f, y, sz, GREEN)
-            p.frame(c, 165f - p.width("THR REF", sz) / 2 - 10, 8f,
-                165f + p.width("THR REF", sz) / 2 + 10, 52f, GREEN, 2.5f)
+            p.text(c, "THR REF", 150f, y, sz, GREEN)
+            p.frame(c, 150f - p.width("THR REF", sz) / 2 - 10, 8f,
+                150f + p.width("THR REF", sz) / 2 + 10, 52f, GREEN, 2.5f)
         }
-        p.text(c, if (d.hasTrack) "TRK HOLD" else "HDG HOLD", 445f, y, sz, GREEN)
+        p.text(c, if (d.hasTrack) "TRK HOLD" else "HDG HOLD", 400f, y, sz, GREEN)
         if (d.altValid) {
             val mode = if (abs(d.vsFpm) >= 300f) "V/S" else "ALT"
-            p.text(c, mode, 675f, y, sz, GREEN)
+            p.text(c, mode, 605f, y, sz, GREEN)
         }
-        p.text(c, "FD", 895f, y, sz, Col.WHITE)
+        p.text(c, "FD", 805f, y, sz, Col.WHITE)
     }
 
     // ---------------------------------------------------------------- pasek pod ADI
     private fun drawBelowAdi(c: Canvas, d: FlightData) {
-        p.rect(c, 0f, ADI_B, 1000f, 1000f, Col.BLACK)
+        p.rect(c, 0f, ADI_B, 900f, 1000f, Col.BLACK)
         // liczba Macha (orientacyjnie, z TAS)
         if (!d.tasKt.isNaN() && d.tasKt > 60f) {
             val mach = d.tasKt / 600f
@@ -340,20 +358,20 @@ class B787Pfd : PfdRenderer {
         if (d.raValid && d.raFt < 2500f) {
             val ra = if (d.raFt < 50f) d.raFt.roundToInt() else (d.raFt / 10f).roundToInt() * 10
             val col = if (d.raFt < 200f) Col.AMBER else GREEN
-            p.text(c, "RADIO", 620f, ADI_B - 64, 26f, GREEN, Paint.Align.LEFT)
-            p.text(c, ra.toString(), 620f, ADI_B - 30, 40f, col, Paint.Align.LEFT)
+            p.text(c, "RADIO", 560f, ADI_B - 64, 26f, GREEN, Paint.Align.LEFT)
+            p.text(c, ra.toString(), 560f, ADI_B - 30, 40f, col, Paint.Align.LEFT)
         }
         // nastawa barometryczna w żółtej ramce
         val y = 642f
         if (d.std) {
-            p.text(c, "STD", 890f, y, 36f, GREEN)
-            p.frame(c, 835f, y - 26, 945f, y + 26, Col.AMBER, 2.5f)
+            p.text(c, "STD", 790f, y, 36f, GREEN)
+            p.frame(c, 735f, y - 26, 845f, y + 26, Col.AMBER, 2.5f)
         } else {
-            p.text(c, "QNH", 790f, y, 28f, Col.WHITE, Paint.Align.LEFT)
+            p.text(c, "QNH", 690f, y, 28f, Col.WHITE, Paint.Align.LEFT)
             val txt = d.qnh.roundToInt().toString()
-            p.text(c, txt, 900f, y, 36f, GREEN)
-            p.frame(c, 855f, y - 26, 945f, y + 26, Col.AMBER, 2.5f)
-            p.text(c, "HPA", 985f, y, 24f, CYAN, Paint.Align.RIGHT)
+            p.text(c, txt, 800f, y, 36f, GREEN)
+            p.frame(c, 755f, y - 26, 845f, y + 26, Col.AMBER, 2.5f)
+            p.text(c, "HPA", 885f, y, 24f, CYAN, Paint.Align.RIGHT)
         }
         // kurs/znos i wiatr po lewej
         if (d.speedValid) p.text(c, "GS " + d.speedKt.roundToInt(), 24f, 642f, 30f, Col.WHITE, Paint.Align.LEFT)
@@ -371,7 +389,7 @@ class B787Pfd : PfdRenderer {
         p.poly(c, Col.WHITE, Col.WHITE, 2f,
             RCX, RCY - RAD + 4, RCX - 14, RCY - RAD - 22, RCX + 14, RCY - RAD - 22)
         c.save()
-        c.clipRect(0f, ADI_B + 60, 1000f, 1000f)
+        c.clipRect(0f, ADI_B + 60, 900f, 1000f)
         c.save()
         c.rotate(-h, RCX, RCY)
         var deg = 0
@@ -415,6 +433,6 @@ class B787Pfd : PfdRenderer {
                 24f, 880f, 28f, MAGENTA, Paint.Align.LEFT)
         }
         p.text(c, if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m" else "GPS szukanie…",
-            976f, 880f, 26f, GREEN, Paint.Align.RIGHT)
+            876f, 880f, 26f, GREEN, Paint.Align.RIGHT)
     }
 }

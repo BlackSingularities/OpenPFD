@@ -29,7 +29,6 @@ class MainActivity : Activity() {
     private lateinit var hub: SensorHub
     private lateinit var pfd: PfdView
     private lateinit var alerts: AlertEngine
-    private lateinit var topScroll: android.widget.HorizontalScrollView
     private lateinit var root: FrameLayout
     private lateinit var topBar: LinearLayout
     private lateinit var styleButton: TextView
@@ -38,7 +37,7 @@ class MainActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val hideChrome = Runnable {
-        topScroll.animate().alpha(0f).setDuration(250).withEndAction { topScroll.visibility = View.GONE }
+        topBar.animate().alpha(0f).setDuration(250).withEndAction { topBar.visibility = View.GONE }
     }
     private val alertLoop = object : Runnable {
         override fun run() {
@@ -68,7 +67,7 @@ class MainActivity : Activity() {
         alerts.varioOn = prefs.getBoolean("vario", true)
         pfd.style = PfdView.Style.entries.firstOrNull { it.name == prefs.getString("style", "AIRBUS") }
             ?: PfdView.Style.AIRBUS
-        pfd.onTapEmpty = { if (topScroll.visibility == View.VISIBLE) hideChrome.run() else showChrome() }
+        pfd.onTapEmpty = { if (topBar.visibility == View.VISIBLE) hideChrome.run() else showChrome() }
         pfd.onCalibrated = { Toast.makeText(this, "Skalibrowano poziom", Toast.LENGTH_SHORT).show() }
 
         root = FrameLayout(this)
@@ -162,11 +161,7 @@ class MainActivity : Activity() {
         styleButton = Ui.pill(this, styleButtonText(), true) { openPicker() }
         topBar.addView(styleButton, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(4f) })
         topBar.addView(Ui.pill(this, "⚙") { openSheet() })
-        topScroll = android.widget.HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(topBar)
-        }
-        root.addView(topScroll, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+        root.addView(topBar, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(12f)
             leftMargin = dp(8f)
             rightMargin = dp(8f)
@@ -174,9 +169,9 @@ class MainActivity : Activity() {
     }
 
     private fun showChrome() {
-        topScroll.animate().cancel()
-        topScroll.visibility = View.VISIBLE
-        topScroll.animate().alpha(1f).setDuration(150)
+        topBar.animate().cancel()
+        topBar.visibility = View.VISIBLE
+        topBar.animate().alpha(1f).setDuration(150)
         handler.removeCallbacks(hideChrome)
         handler.postDelayed(hideChrome, 4000L)
     }

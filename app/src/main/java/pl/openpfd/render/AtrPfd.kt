@@ -137,6 +137,7 @@ class AtrPfd : PfdRenderer {
         p.rect(c, ADI_L, ADI_T, ADI_R, ADI_B, BALL)
         c.restore()
 
+        drawPitchChevrons(c, d)
         drawRollScale(c, d)
         drawAircraft(c)
 
@@ -148,6 +149,21 @@ class AtrPfd : PfdRenderer {
             p.frame(c, CX - 42, ADI_B - 74, CX + 42, ADI_B - 24, col, 2.5f)
             p.text(c, ra.toString(), CX, ADI_B - 49, 36f, col)
         }
+    }
+
+    /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
+        if (d.pitch <= 30f && d.pitch >= -20f) return
+        val dir = if (d.pitch > 0f) 1f else -1f
+        c.save()
+        c.clipPath(adiClip)
+        c.rotate(-d.roll, CX, CY)
+        for (k in 1..2) {
+            val y = CY + dir * (70f + k * 62f)
+            p.line(c, CX - 66, y + dir * 42, CX, y, Col.RED, 6f)
+            p.line(c, CX, y, CX + 66, y + dir * 42, Col.RED, 6f)
+        }
+        c.restore()
     }
 
     private fun bird(c: Canvas, x: Float, y: Float, color: Int) {

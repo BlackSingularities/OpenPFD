@@ -1,11 +1,9 @@
 package pl.openpfd.render
 
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
-import android.graphics.Shader
 import pl.openpfd.FlightData
 import pl.openpfd.angDiff
 import java.util.Locale
@@ -15,18 +13,8 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
-/** Wariant kolorystyki i ograniczeń PFD Boeinga 737 (Common Display System). */
-data class BoeingVariant(
-    val skyTop: Int, val sky: Int, val ground: Int, val groundBottom: Int,
-    val tape: Int, val vsiBg: Int, val rose: Int, val fmaBg: Int, val vmo: Float, val fd: String,
-) {
-    companion object {
-        val B737 = BoeingVariant(0xFF1A8FD8.toInt(), 0xFF1A8FD8.toInt(), 0xFF8A4A17.toInt(), 0xFF8A4A17.toInt(),
-            0xFF5E5F63.toInt(), 0xFF4A4B4F.toInt(), 0xFF55565A.toInt(), 0xFF3A3B3E.toInt(), 340f, "FD")
-    }
-}
-
-class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRenderer {
+/** PFD Boeinga 737NG/MAX (Common Display System). */
+class BoeingPfd : PfdRenderer {
     private val p = Pen()
 
     private companion object {
@@ -38,6 +26,14 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
 
         const val GREEN = 0xFF3EEA4C.toInt()
         const val CYAN = 0xFF33DDFF.toInt()
+
+        const val SKY = 0xFF1A8FD8.toInt()
+        const val GROUND = 0xFF8A4A17.toInt()
+        const val TAPE = 0xFF5E5F63.toInt()
+        const val VSI_BG = 0xFF4A4B4F.toInt()
+        const val ROSE = 0xFF55565A.toInt()
+        const val FMA_BG = 0xFF3A3B3E.toInt()
+        const val VMO = 340f
         const val MAGENTA = 0xFFEE55DD.toInt()
 
         const val RCX = BX
@@ -45,12 +41,6 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         const val RAD = 330f
     }
 
-    private val skyPaint = Paint().apply {
-        shader = LinearGradient(0f, BY - 400f, 0f, BY, vr.skyTop, vr.sky, Shader.TileMode.CLAMP)
-    }
-    private val groundPaint = Paint().apply {
-        shader = LinearGradient(0f, BY, 0f, BY + 400f, vr.ground, vr.groundBottom, Shader.TileMode.CLAMP)
-    }
 
     private val attClip = Path().apply {
         addRoundRect(RectF(BX - AW, BY - AH, BX + AW, BY + AH), 48f, 48f, Path.Direction.CW)
@@ -81,8 +71,8 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         c.save()
         c.rotate(-d.roll, BX, BY)
         c.translate(0f, d.pitch * PPD)
-        c.drawRect(BX - 1000, BY - 3000, BX + 1000, BY, skyPaint)
-        c.drawRect(BX - 1000, BY, BX + 1000, BY + 3000, groundPaint)
+        p.rect(c, BX - 1000, BY - 3000, BX + 1000, BY, SKY)
+        p.rect(c, BX - 1000, BY, BX + 1000, BY + 3000, GROUND)
         p.line(c, BX - 1000, BY, BX + 1000, BY, Col.WHITE, 3f)
 
         // skala kursu na horyzoncie
@@ -207,7 +197,7 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         val t = 170f
         val b = 770f
         val k = 4.2f
-        p.rect(c, l, t, r, b, vr.tape)
+        p.rect(c, l, t, r, b, TAPE)
         if (!d.speedValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
             p.text(c, "SPD", (l + r) / 2, BY, 40f, Col.AMBER)
@@ -223,8 +213,8 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
             if (v % 20 == 0) p.text(c, v.toString(), r - 28, y, 40f, Col.WHITE, Paint.Align.RIGHT)
             v += 10
         }
-        if (s + 80f > vr.vmo) {
-            var y = BY - (vr.vmo - s) * k
+        if (s + 80f > VMO) {
+            var y = BY - (VMO - s) * k
             var red = true
             while (y > t) {
                 p.rect(c, r - 12, y - 12, r, y, if (red) Col.RED else Col.BLACK)
@@ -276,7 +266,7 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         val t = 170f
         val b = 770f
         val k = 0.3f
-        p.rect(c, l, t, r, b, vr.tape)
+        p.rect(c, l, t, r, b, TAPE)
         if (!d.altValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
             p.text(c, "ALT", (l + r) / 2, BY, 40f, Col.AMBER)
@@ -350,7 +340,7 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
     private fun drawVsi(c: Canvas, d: FlightData) {
         val l = 942f
         val r = 998f
-        p.poly(c, vr.vsiBg, 0, 0f, l, 290f, l + 22, 230f, r, 230f, r, 710f, l + 22, 710f, l, 650f)
+        p.poly(c, VSI_BG, 0, 0f, l, 290f, l + 22, 230f, r, 230f, r, 710f, l + 22, 710f, l, 650f)
         for (v in intArrayOf(500, 1000, 1500, 2000, 6000)) {
             for (sg in intArrayOf(-1, 1)) {
                 val y = vy((sg * v).toFloat())
@@ -377,7 +367,7 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
     private fun drawCompass(c: Canvas, d: FlightData) {
         c.save()
         c.clipRect(0f, 862f, 1000f, 1000f)
-        p.circle(c, RCX, RCY, RAD, vr.rose)
+        p.circle(c, RCX, RCY, RAD, ROSE)
         if (!d.attValid) {
             c.restore()
             p.text(c, "HDG", RCX, 930f, 40f, Col.AMBER)
@@ -418,7 +408,7 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
 
     // ---------------------------------------------------------------- FMA
     private fun drawFma(c: Canvas, d: FlightData) {
-        p.rect(c, 200f, 12f, 740f, 80f, vr.fmaBg)
+        p.rect(c, 200f, 12f, 740f, 80f, FMA_BG)
         p.line(c, 380f, 16f, 380f, 76f, Col.WHITE, 2.5f)
         p.line(c, 560f, 16f, 560f, 76f, Col.WHITE, 2.5f)
         val flying = d.speedValid && d.speedKt > 30f
@@ -426,7 +416,7 @@ class BoeingPfd(private val vr: BoeingVariant = BoeingVariant.B737) : PfdRendere
         if (d.hasTrack) p.text(c, "HDG SEL", 470f, 46f, 38f, GREEN)
         if (d.altValid && abs(d.vsFpm) >= 300f) p.text(c, "V/S", 650f, 46f, 38f, GREEN)
         else if (flying) p.text(c, "ALT HOLD", 650f, 46f, 38f, GREEN)
-        p.text(c, vr.fd, BX, 128f, 48f, Col.WHITE)
+        p.text(c, "FD", BX, 128f, 48f, Col.WHITE)
     }
 
     // ---------------------------------------------------------------- baro

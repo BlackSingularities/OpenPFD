@@ -12,9 +12,14 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/** Wspólny interfejs motywów PFD. Rysują w wirtualnym kwadracie 1000×1000. */
+/**
+ * Wspólny interfejs motywów PFD. Każdy rysuje w swoim wirtualnym prostokącie
+ * [vw] × [vh] o proporcjach prawdziwego wyświetlacza.
+ */
 interface PfdRenderer {
     val baroRect: RectF
+    val vw: Float get() = 1000f
+    val vh: Float get() = 1000f
     fun draw(c: Canvas, d: FlightData)
 }
 

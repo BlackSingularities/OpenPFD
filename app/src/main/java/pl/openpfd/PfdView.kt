@@ -16,7 +16,6 @@ import pl.openpfd.render.AtrPfd
 import pl.openpfd.render.B787Pfd
 import pl.openpfd.render.E190Pfd
 import pl.openpfd.render.BoeingPfd
-import pl.openpfd.render.BoeingVariant
 import pl.openpfd.render.CessnaPanel
 import pl.openpfd.render.GarminPfd
 import pl.openpfd.render.PfdRenderer
@@ -57,7 +56,7 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
     private val squares: Map<Style, PfdRenderer> = mapOf(
         Style.AIRBUS to AirbusPfd(AirbusVariant.A320),
         Style.ATR to AtrPfd(),
-        Style.BOEING to BoeingPfd(BoeingVariant.B737),
+        Style.BOEING to BoeingPfd(),
         Style.B787 to B787Pfd(),
         Style.EMBRAER to E190Pfd(),
         Style.GARMIN to GarminPfd(),
@@ -77,7 +76,7 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
         typeface = Typeface.MONOSPACE
     }
 
-    private var size = 0f
+    private var scale = 0f
     private var ox = 0f
     private var oy = 0f
 
@@ -107,7 +106,7 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
     private fun onTap(x: Float, y: Float) {
         val r = renderer
         val baroHit = if (r == null) panel.baroHit(x, y)
-        else size > 0f && r.baroRect.contains((x - ox) / size * 1000f, (y - oy) / size * 1000f)
+        else scale > 0f && r.baroRect.contains((x - ox) / scale, (y - oy) / scale)
         if (baroHit) {
             hub.std = !hub.std
             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -123,13 +122,13 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
         if (r == null) {
             panel.draw(canvas, d, width.toFloat(), height.toFloat())
         } else {
-            size = min(width, height).toFloat()
-            ox = (width - size) / 2f
-            oy = (height - size) / 2f
+            scale = min(width / r.vw, height / r.vh)
+            ox = (width - r.vw * scale) / 2f
+            oy = (height - r.vh * scale) / 2f
             canvas.save()
             canvas.translate(ox, oy)
-            canvas.scale(size / 1000f, size / 1000f)
-            canvas.clipRect(0f, 0f, 1000f, 1000f)
+            canvas.scale(scale, scale)
+            canvas.clipRect(0f, 0f, r.vw, r.vh)
             r.draw(canvas, d)
             canvas.restore()
             drawStatus(canvas, d)

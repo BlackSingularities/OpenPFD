@@ -12,6 +12,7 @@ import java.util.Locale
 import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.sin
 
@@ -36,6 +37,7 @@ class AlertEngine(ctx: Context) : TextToSpeech.OnInitListener {
     private var airborne = false
     private var lastBank = 0L
     private var lastSink = 0L
+    private var lastTerrain = 0L
     private var testing = false
 
     private val callouts = listOf(
@@ -94,9 +96,36 @@ class AlertEngine(ctx: Context) : TextToSpeech.OnInitListener {
             }
         }
 
+        if (voiceOn && airborne && now - lastTerrain > 7000 && terrainAhead(d)) {
+            lastTerrain = now
+            say("terrain ahead, terrain ahead", flush = true)
+        }
+
         synth.overspeed = voiceOn && d.speedValid && d.speedKt > p.vmoKt
         synth.stall = voiceOn && airborne && p.vStallKt > 0f && d.speedKt < p.vStallKt
         synth.vario = if (varioOn && p.glider && d.altValid) teVarioMs(d) else Float.NaN
+    }
+
+    /**
+     * Teren na kursie: sprawdza wysokość modelu terenu w punktach 20, 40 i 60 s
+     * przed samolotem i porównuje ją z przewidywaną wysokością lotu.
+     */
+    private fun terrainAhead(d: FlightData): Boolean {
+        val g = d.terrain ?: return false
+        if (!d.hasTrack || !d.gpsFix || d.speedKt < 40f || d.mslFt.isNaN()) return false
+        val trkTrue = Math.toRadians((d.track + d.magVar).toDouble())
+        val mPerDegLat = 111320.0
+        val mPerDegLon = mPerDegLat * cos(Math.toRadians(d.lat))
+        if (mPerDegLon < 1.0) return false
+        for (sec in intArrayOf(20, 40, 60)) {
+            val dist = d.speedKt * 0.514444f * sec
+            val lat = d.lat + cos(trkTrue) * dist / mPerDegLat
+            val lon = d.lon + sin(trkTrue) * dist / mPerDegLon
+            val elevFt = (g.elevationAt(lat, lon) ?: continue) * 3.28084f
+            val futureFt = d.mslFt + d.vsFpm * (sec / 60f)
+            if (futureFt - elevFt < 300f) return true
+        }
+        return false
     }
 
     /** Wariometr z kompensacją energii całkowitej (TE): V/S + V·dV/dt / g. */
