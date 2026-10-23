@@ -75,7 +75,7 @@ class AtrPfd : PfdRenderer {
         val sz = 28f
         val flying = d.speedValid && d.speedKt > 30f
         if (flying) p.text(c, if (d.hasTrack) "TRK HOLD" else "HDG HOLD", 352f, y, sz, GREEN)
-        if (d.altValid) p.text(c, if (abs(d.vsFpm) >= 300f) "V/S" else "ALT", 614f, y, sz, GREEN)
+        if (d.altValid) p.text(c, if (abs(d.vsFpm) >= 300f) "V/S" else "ALT", 540f, y, sz, GREEN)
         p.text(c, "AP", 748f, y, sz, GREEN)
         p.text(c, "|", 776f, y, sz, GREY)
         p.text(c, "FD", 804f, y, sz, GREEN)
