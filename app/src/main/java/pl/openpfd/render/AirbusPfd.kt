@@ -25,12 +25,10 @@ data class AirbusVariant(
             0xFF5D5D5D.toInt(), 0xFF3F3F3F.toInt(), 350f, "1 FD 2", "A/THR")
         val A350 = AirbusVariant(0xFF0B5DB8.toInt(), 0xFF3A9BEA.toInt(), 0xFF8E4F22.toInt(), 0xFF4E2A0E.toInt(),
             0xFF44474C.toInt(), 0xFF2E3135.toInt(), 340f, "1 FD 2", "A/THR")
-        val ATR72 = AirbusVariant(0xFF1478D0.toInt(), 0xFF2E9BF0.toInt(), 0xFF8A5426.toInt(), 0xFF6A3C16.toInt(),
-            0xFF545454.toInt(), 0xFF3A3A3A.toInt(), 250f, "FD", "")
     }
 }
 
-/** PFD w stylu Airbusa (A320, A350) i Thalesa (ATR 72-600). */
+/** PFD w stylu Airbusa (A320, A350). */
 class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRenderer {
     private val p = Pen()
 
