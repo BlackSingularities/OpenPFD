@@ -30,7 +30,7 @@ Callouty wysokości radiowej (2500…10), „bank angle”, „sink rate”, „
 stall horn oraz dźwiękowy wariometr szybowcowy. Menu → *Test ostrzeżeń* odtwarza wszystkie.
 
 ## Aktualizacje
-Każdy merge do `main` buduje podpisany APK i publikuje **GitHub Release** `v1.0.N`.
+Każdy wypchnięty tag `vX.Y.Z` buduje podpisany APK i publikuje **GitHub Release** o tej samej nazwie.
 Aplikacja co 6 h (i przy starcie) sprawdza najnowszy release i proponuje instalację.
 
 > Nie do nawigacji lotniczej.

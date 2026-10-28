@@ -1,10 +1,9 @@
 name: Build & Release
 
+# Budowanie i wydanie wyłącznie po wypchnięciu tagu wersji (np. v1.2.3).
 on:
   push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
+    tags: ['v*']
 
 permissions:
   contents: write
@@ -40,21 +39,20 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           gradle assembleRelease --no-daemon --stacktrace \
-            -PversionCode=${{ github.run_number }} \
-            -PversionName=1.0.${{ github.run_number }}
-          cp app/build/outputs/apk/release/app-release.apk "OpenPFD-1.0.${{ github.run_number }}.apk"
+            -PversionCode=$(( ${{ github.run_number }} + 100 )) \
+            -PversionName=${GITHUB_REF_NAME#v}
+          cp app/build/outputs/apk/release/app-release.apk "OpenPFD-${GITHUB_REF_NAME#v}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: OpenPFD-1.0.${{ github.run_number }}
+          name: OpenPFD-${{ github.ref_name }}
           path: OpenPFD-*.apk
 
       - name: GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.0.${{ github.run_number }}" "OpenPFD-1.0.${{ github.run_number }}.apk" \
-            --title "OpenPFD 1.0.${{ github.run_number }}" \
+          gh release create "$GITHUB_REF_NAME" "OpenPFD-${GITHUB_REF_NAME#v}.apk" \
+            --title "OpenPFD ${GITHUB_REF_NAME#v}" \
             --generate-notes \
-            --target "${{ github.sha }}"
+            --verify-tag

@@ -322,7 +322,7 @@ class MainActivity : Activity() {
             "Telefon trzymaj pionowo, ekranem do siebie. Przytrzymaj ekran, by wypoziomować. " +
                 "Dotknij okna ciśnienia, by przełączyć QNH/STD. Nie do nawigacji lotniczej.",
             12f, Ui.TEXT_FAINT))
-        content.addView(Ui.label(this, "Projekt i wykonanie: redzikowski.com", 12f, Ui.TEXT_FAINT).apply {
+        content.addView(Ui.label(this, "Pomysł i wykonanie: Adam Rędzikowski · redzikowski.com", 12f, Ui.TEXT_FAINT).apply {
             setPadding(0, dp(10f), 0, dp(8f))
             setOnClickListener { openUrl("https://redzikowski.com") }
         })
