@@ -26,7 +26,7 @@ object Updater {
         running = true
         thread(name = "update-check") {
             try {
-                val json = JSONObject(get("https://api.github.com/repos/$REPO/releases/latest"))
+                val json = JSONObject(get("https://redzikowski.com/api/github/repos/$REPO/releases/latest"))
                 val tag = json.getString("tag_name")
                 val code = tag.substringAfterLast('.').toIntOrNull() ?: 0
                 val assets = json.getJSONArray("assets")
