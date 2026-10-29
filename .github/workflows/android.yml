@@ -38,8 +38,10 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          # versionCode = major*10000 + minor*100 + patch – ta sama liczba, którą aktualizator liczy z tagu.
+          IFS=. read -r MA MI PA <<< "${GITHUB_REF_NAME#v}"
           gradle assembleRelease --no-daemon --stacktrace \
-            -PversionCode=$(( ${{ github.run_number }} + 100 )) \
+            -PversionCode=$(( MA * 10000 + MI * 100 + PA )) \
             -PversionName=${GITHUB_REF_NAME#v}
           cp app/build/outputs/apk/release/app-release.apk "OpenPFD-${GITHUB_REF_NAME#v}.apk"
 

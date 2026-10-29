@@ -21,6 +21,12 @@ object Updater {
     private const val REPO = "BlackSingularities/OpenPFD"
     @Volatile private var running = false
 
+    /** v1.2.3 → 10203, tak samo jak versionCode ustawiany w workflow wydania. */
+    private fun versionCode(tag: String): Int {
+        val parts = tag.removePrefix("v").split('.').map { it.toIntOrNull() ?: 0 }
+        return parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }
+    }
+
     fun check(act: Activity, manual: Boolean, onAvailable: (tag: String, url: String) -> Unit) {
         if (running) return
         running = true
@@ -28,7 +34,7 @@ object Updater {
             try {
                 val json = JSONObject(get("https://redzikowski.com/api/github/repos/$REPO/releases/latest"))
                 val tag = json.getString("tag_name")
-                val code = tag.substringAfterLast('.').toIntOrNull() ?: 0
+                val code = versionCode(tag)
                 val assets = json.getJSONArray("assets")
                 var apkUrl: String? = null
                 for (i in 0 until assets.length()) {
