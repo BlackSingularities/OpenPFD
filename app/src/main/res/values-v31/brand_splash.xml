@@ -1,0 +1,1 @@
+<resources><style name="Theme.OpenPFD" parent="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"><item name="android:windowBackground">@drawable/brand_launch_screen</item><item name="android:windowSplashScreenBackground">@color/brand_splash_background</item><item name="android:windowSplashScreenAnimatedIcon">@drawable/brand_launcher</item></style></resources>

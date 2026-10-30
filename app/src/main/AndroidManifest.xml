@@ -13,8 +13,8 @@
     <application
         android:label="OpenPFD"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/Theme.OpenPFD"
         android:allowBackup="true">
 
         <activity
