@@ -326,6 +326,10 @@ class MainActivity : Activity() {
             setPadding(0, dp(10f), 0, dp(8f))
             setOnClickListener { openUrl("https://redzikowski.com") }
         })
+        content.addView(Ui.label(this, "kontakt@redzikowski.com", 12f, Ui.TEXT_FAINT).apply {
+            setPadding(0, 0, 0, dp(8f))
+            setOnClickListener { openUrl("mailto:kontakt@redzikowski.com") }
+        })
         content.addView(Ui.pill(this, "☕  Postaw kawę") { openUrl("https://buycoffee.to/adamredzikowski") })
         showSheet("Ustawienia", content)
     }
