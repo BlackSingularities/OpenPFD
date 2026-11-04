@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Bez żadnych wzmianek o GitHubie w aplikacji: nowy adres serwera aktualizacji, komunikaty błędów bez nazw zewnętrznych serwerów.
+
 ## 1.1.0
 
 - Naprawione sprawdzanie aktualizacji: nowsze wydania są teraz poprawnie wykrywane.

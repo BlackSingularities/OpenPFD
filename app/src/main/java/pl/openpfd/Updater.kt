@@ -32,7 +32,7 @@ object Updater {
         running = true
         thread(name = "update-check") {
             try {
-                val json = JSONObject(get("https://redzikowski.com/api/github/repos/$REPO/releases/latest"))
+                val json = JSONObject(get("https://redzikowski.com/api/releases/repos/$REPO/releases/latest"))
                 val tag = json.getString("tag_name")
                 val code = versionCode(tag)
                 val assets = json.getJSONArray("assets")
@@ -107,7 +107,7 @@ object Updater {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 10000
         c.readTimeout = 10000
-        c.setRequestProperty("Accept", "application/vnd.github+json")
+        c.setRequestProperty("Accept", "application/json")
         c.setRequestProperty("User-Agent", "OpenPFD")
         try {
             if (c.responseCode !in 200..299) throw IllegalStateException("HTTP " + c.responseCode)
