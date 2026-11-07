@@ -55,6 +55,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pl.openpfd.feedback.Feedback.install(this, "openpfd")
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= 28) {
             window.attributes.layoutInDisplayCutoutMode =
@@ -76,6 +77,7 @@ class MainActivity : Activity() {
         root.addView(pfd, FrameLayout.LayoutParams(-1, -1))
         buildTopBar()
         setContentView(root)
+        pl.openpfd.feedback.FeedbackViews.promptCrashIfAny(this)
 
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(
@@ -340,6 +342,10 @@ class MainActivity : Activity() {
         content.addView(Ui.label(this, "kontakt@redzikowski.com", 12f, Ui.TEXT_FAINT).apply {
             setPadding(0, 0, 0, dp(8f))
             setOnClickListener { openUrl("mailto:kontakt@redzikowski.com") }
+        })
+        content.addView(Ui.label(this, pl.openpfd.feedback.FeedbackViews.entryTitle, 12f, Ui.TEXT_FAINT).apply {
+            setPadding(0, 0, 0, dp(8f))
+            setOnClickListener { pl.openpfd.feedback.FeedbackViews.show(this@MainActivity) }
         })
         content.addView(Ui.pill(this, getString(R.string.buy_coffee)) { openUrl("https://buycoffee.to/adamredzikowski") })
         showSheet(getString(R.string.settings_title), content)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- Zgłaszanie błędów i sugestii: nowa pozycja „Zgłoś błąd lub sugestię” – opis trafia prosto do autora przez redzikowski.com, e-mail jest opcjonalny.
+- Po nieoczekiwanym zamknięciu aplikacja przy następnym uruchomieniu proponuje wysłanie raportu o błędzie – tylko za zgodą użytkownika.
+
 ## 1.2.0
 
 - Angielska wersja językowa (domyślna); polska wybierana automatycznie przy polskim języku systemu. Wszystkie teksty interfejsu przeniesione do zasobów `strings.xml`.
