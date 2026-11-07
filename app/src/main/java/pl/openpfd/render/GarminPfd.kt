@@ -82,7 +82,7 @@ class GarminPfd : PfdRenderer {
             p.rect(c, 0f, 0f, 1000f, 750f, 0xFF20262E.toInt())
             p.line(c, 350f, 190f, 650f, 450f, Col.RED, 8f)
             p.line(c, 650f, 190f, 350f, 450f, Col.RED, 8f)
-            p.text(c, "AHRS FAIL", CX, 520f, 40f, Col.RED)
+            p.flag(c, "AHRS FAIL", CX, 520f, 40f, Col.RED)
             return
         }
         c.save()
@@ -414,7 +414,7 @@ class GarminPfd : PfdRenderer {
         p.rect(c, HX - 58, HY - HR - 64, HX + 58, HY - HR - 20, Col.BLACK)
         p.frame(c, HX - 58, HY - HR - 64, HX + 58, HY - HR - 20, GREY, 2f)
         if (!d.attValid) {
-            p.text(c, "HDG", HX, HY - HR - 42, 30f, Col.RED)
+            p.flag(c, "HDG", HX, HY - HR - 42, 30f, Col.RED)
             p.line(c, HX - HR, HY - HR, HX + HR, HY + HR, Col.RED, 5f)
             p.line(c, HX + HR, HY - HR, HX - HR, HY + HR, Col.RED, 5f)
             return

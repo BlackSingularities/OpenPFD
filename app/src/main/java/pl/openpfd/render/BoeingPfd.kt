@@ -62,7 +62,7 @@ class BoeingPfd : PfdRenderer {
     private fun drawAttitude(c: Canvas, d: FlightData) {
         if (!d.attValid) {
             p.frame(c, BX - 40, BY - 110, BX + 40, BY - 60, Col.AMBER, 3f)
-            p.text(c, "ATT", BX, BY - 85, 40f, Col.AMBER)
+            p.flag(c, "ATT", BX, BY - 85, 40f, Col.AMBER)
             drawAircraft(c)
             return
         }
@@ -136,19 +136,8 @@ class BoeingPfd : PfdRenderer {
     }
 
     /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
-    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
-        if (d.pitch <= 30f && d.pitch >= -20f) return
-        val dir = if (d.pitch > 0f) 1f else -1f
-        c.save()
-        c.clipPath(attClip)
-        c.rotate(-d.roll, BX, BY)
-        for (k in 1..2) {
-            val y = BY + dir * (70f + k * 60f)
-            p.line(c, BX - 64, y + dir * 40, BX, y, Col.RED, 6f)
-            p.line(c, BX, y, BX + 64, y + dir * 40, Col.RED, 6f)
-        }
-        c.restore()
-    }
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) =
+        p.pitchChevrons(c, attClip, BX, BY, d, 70f, 60f, 64f, 40f)
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
         val r = 238f
@@ -200,7 +189,7 @@ class BoeingPfd : PfdRenderer {
         p.rect(c, l, t, r, b, TAPE)
         if (!d.speedValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
-            p.text(c, "SPD", (l + r) / 2, BY, 40f, Col.AMBER)
+            p.flag(c, "SPD", (l + r) / 2, BY, 40f, Col.AMBER)
             return
         }
         val s = d.speedKt
@@ -269,7 +258,7 @@ class BoeingPfd : PfdRenderer {
         p.rect(c, l, t, r, b, TAPE)
         if (!d.altValid) {
             p.frame(c, l + 18, BY - 26, r - 18, BY + 26, Col.AMBER, 3f)
-            p.text(c, "ALT", (l + r) / 2, BY, 40f, Col.AMBER)
+            p.flag(c, "ALT", (l + r) / 2, BY, 40f, Col.AMBER)
             return
         }
         val a = d.altFt
@@ -370,7 +359,7 @@ class BoeingPfd : PfdRenderer {
         p.circle(c, RCX, RCY, RAD, ROSE)
         if (!d.attValid) {
             c.restore()
-            p.text(c, "HDG", RCX, 930f, 40f, Col.AMBER)
+            p.flag(c, "HDG", RCX, 930f, 40f, Col.AMBER)
             return
         }
         val h = d.heading

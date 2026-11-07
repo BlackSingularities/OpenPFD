@@ -71,7 +71,7 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
     // ---------------------------------------------------------------- horyzont
     private fun drawAttitude(c: Canvas, d: FlightData) {
         if (!d.attValid) {
-            p.text(c, "ATT", CX, CY - 60, 52f, Col.RED)
+            p.flag(c, "ATT", CX, CY - 60, 52f, Col.RED)
             drawAircraft(c)
             return
         }
@@ -136,26 +136,11 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
     }
 
     /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
-    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
-        if (d.pitch <= 30f && d.pitch >= -20f) return
-        val dir = if (d.pitch > 0f) 1f else -1f
-        c.save()
-        c.clipPath(attClip)
-        c.rotate(-d.roll, CX, CY)
-        for (k in 1..2) {
-            val y = CY + dir * (90f + k * 70f)
-            p.line(c, CX - 72, y + dir * 46, CX, y, Col.RED, 6f)
-            p.line(c, CX, y, CX + 72, y + dir * 46, Col.RED, 6f)
-        }
-        c.restore()
-    }
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) =
+        p.pitchChevrons(c, attClip, CX, CY, d, 90f, 70f, 72f, 46f)
 
-    private fun bird(c: Canvas, x: Float, y: Float, color: Int) {
-        p.circle(c, x, y, 14f, color, 4f)
-        p.line(c, x - 14, y, x - 42, y, color, 4f)
-        p.line(c, x + 14, y, x + 42, y, color, 4f)
-        p.line(c, x, y - 14, x, y - 30, color, 4f)
-    }
+    private fun bird(c: Canvas, x: Float, y: Float, color: Int) =
+        p.bird(c, x, y, color, 14f, 42f, 30f, 4f)
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
         for (a in intArrayOf(10, 20, 30, 45)) {
@@ -204,7 +189,7 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         val b = 780f
         val k = 4.75f
         if (!d.speedValid) {
-            p.text(c, "SPD", (l + r) / 2, CY, 50f, Col.RED)
+            p.flag(c, "SPD", (l + r) / 2, CY, 50f, Col.RED)
             return
         }
         val s = d.speedKt
@@ -256,7 +241,7 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         val b = 780f
         val k = 0.475f
         if (!d.altValid) {
-            p.text(c, "ALT", (l + r) / 2, CY, 50f, Col.RED)
+            p.flag(c, "ALT", (l + r) / 2, CY, 50f, Col.RED)
             return
         }
         val a = d.altFt
@@ -326,7 +311,7 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         }
         p.line(c, l + 30, CY, l + 58, CY, YELLOW, 5f)
         if (!d.altValid) {
-            p.text(c, "V/S", (l + r) / 2 + 8, CY - 80, 34f, Col.RED)
+            p.flag(c, "V/S", (l + r) / 2 + 8, CY - 80, 34f, Col.RED)
             return
         }
         val vs = d.vsFpm
@@ -352,7 +337,7 @@ class AirbusPfd(private val vr: AirbusVariant = AirbusVariant.A320) : PfdRendere
         val b = 982f
         val k = 10.3f
         if (!d.attValid) {
-            p.text(c, "HDG", CX, (t + b) / 2, 46f, Col.RED)
+            p.flag(c, "HDG", CX, (t + b) / 2, 46f, Col.RED)
             return
         }
         val h = d.heading

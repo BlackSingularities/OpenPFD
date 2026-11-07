@@ -41,4 +41,7 @@ data class FlightData(
     val drift: Float = 0f,         // kąt znosu = kąt drogi − kurs
     val gLoad: Float = 1f,
     val magVar: Float = 0f,        // deklinacja magnetyczna (E +)
+    val qnhKnown: Boolean = true,  // czy QNH pochodzi z jakiegokolwiek źródła
+    val qnhAgeMin: Float = 0f,     // wiek QNH w minutach
+    val netOk: Boolean = true,     // ostatnie pobranie danych z sieci powiodło się
 )

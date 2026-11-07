@@ -135,7 +135,7 @@ class CessnaPanel(private val kind: Kind = Kind.CESSNA) : FullRenderer {
         p.line(c, 0f, h - hb, w, h - hb, 0xFF3C3E42.toInt(), 1.5f)
         val y = h - hb / 2f
         val sz = (hb * 0.42f).coerceIn(11f, 26f)
-        val gps = if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "GPS · szukanie…"
+        val gps = if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "GPS · ACQ…"
         p.text(c, gps, w * 0.02f, y, sz, if (d.gpsFix) LABEL else ORANGE, Paint.Align.LEFT)
         val baroTxt = if (d.std) "STD 1013" else "QNH " + d.qnh.roundToInt() + " · " + d.qnhSource
         p.text(c, baroTxt, w * 0.5f, y, sz, LABEL)

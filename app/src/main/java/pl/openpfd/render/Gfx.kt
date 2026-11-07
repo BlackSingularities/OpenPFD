@@ -120,6 +120,46 @@ class Pen {
         line(c, cx + r1 * s, cy - r1 * k, cx + r2 * s, cy - r2 * k, color, w)
     }
 
+    /** Flaga awarii w ramce (jak w prawdziwych PFD): „ATT”, „SPD”, „ALT”… */
+    fun flag(c: Canvas, s: String, x: Float, y: Float, size: Float, color: Int, align: Paint.Align = Paint.Align.CENTER) {
+        val w = width(s, size)
+        val padX = size * 0.28f
+        val l = when (align) {
+            Paint.Align.LEFT -> x - padX
+            Paint.Align.RIGHT -> x - w - padX
+            else -> x - w / 2f - padX
+        }
+        rect(c, l, y - size * 0.62f, l + w + 2 * padX, y + size * 0.62f, Col.BLACK)
+        frame(c, l, y - size * 0.62f, l + w + 2 * padX, y + size * 0.62f, color, size * 0.07f)
+        text(c, s, x, y, size, color, align, bold = true)
+    }
+
+    /** Czerwone szewrony nadmiernego pochylenia (pitch > 30° lub < −20°). */
+    fun pitchChevrons(
+        c: Canvas, clip: Path, cx: Float, cy: Float, d: FlightData,
+        start: Float, step: Float, half: Float, drop: Float,
+    ) {
+        if (d.pitch <= 30f && d.pitch >= -20f) return
+        val dir = if (d.pitch > 0f) 1f else -1f
+        c.save()
+        c.clipPath(clip)
+        c.rotate(-d.roll, cx, cy)
+        for (k in 1..2) {
+            val y = cy + dir * (start + k * step)
+            line(c, cx - half, y + dir * drop, cx, y, Col.RED, 6f)
+            line(c, cx, y, cx + half, y + dir * drop, Col.RED, 6f)
+        }
+        c.restore()
+    }
+
+    /** Symbol wektora toru lotu („ptaszek”). */
+    fun bird(c: Canvas, x: Float, y: Float, color: Int, r: Float, arm: Float, stem: Float, w: Float) {
+        circle(c, x, y, r, color, w)
+        line(c, x - r, y, x - arm, y, color, w)
+        line(c, x + r, y, x + arm, y, color, w)
+        line(c, x, y - r, x, y - stem, color, w)
+    }
+
     /**
      * Bęben z cyframi przewijanymi pionowo (jak w prawdziwych PFD).
      * value – pozycja w krokach bębna, label(k) – etykieta k-tego kroku.
@@ -147,3 +187,24 @@ fun baroText(d: FlightData): String =
 fun floorTo(v: Float, step: Int): Int = (floor(v / step) * step).toInt()
 
 fun mod(a: Int, m: Int): Int = ((a % m) + m) % m
+
+/** Zdegradowane źródło danych – krótki komunikat i jego kolor. */
+data class Degradation(val text: String, val color: Int)
+
+/**
+ * Lista ostrzeżeń o jakości danych wspólna dla wszystkich przyrządów: brak GPS, wysokość z GPS
+ * zamiast barometru, brak lub nieaktualne QNH, brak sieci, kurs względny, brak modelu terenu.
+ */
+fun degradations(d: FlightData): List<Degradation> = buildList {
+    if (!d.gpsFix) add(Degradation("NO GPS", Col.AMBER))
+    if (d.altValid && !d.altFromBaro) add(Degradation("GPS ALT", Col.AMBER))
+    if (!d.std) {
+        when {
+            !d.qnhKnown -> add(Degradation("NO QNH", Col.AMBER))
+            d.qnhAgeMin > 90f -> add(Degradation("QNH ${d.qnhAgeMin.roundToInt()}'", Col.AMBER))
+        }
+    }
+    if (!d.netOk) add(Degradation("NO NET", Col.WHITE))
+    if (!d.headingMagnetic) add(Degradation("HDG REL", Col.WHITE))
+    if (d.gpsFix && d.netOk && d.terrain == null) add(Degradation("NO TERR", Col.WHITE))
+}

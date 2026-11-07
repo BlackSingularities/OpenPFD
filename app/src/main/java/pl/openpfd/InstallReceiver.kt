@@ -18,8 +18,8 @@ class InstallReceiver : BroadcastReceiver() {
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
             else -> {
-                val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "nieznany błąd"
-                Toast.makeText(context, "Instalacja nieudana: $msg", Toast.LENGTH_LONG).show()
+                val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "?"
+                Toast.makeText(context, context.getString(R.string.install_failed, msg), Toast.LENGTH_LONG).show()
             }
         }
     }

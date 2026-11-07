@@ -17,8 +17,22 @@ import kotlin.math.sqrt
 class QnhProvider {
     @Volatile var qnh: Float = 1013.25f
         private set
-    @Volatile var source: String = "BRAK DANYCH"
+    @Volatile var source: String = NO_DATA
         private set
+    /** Czas (elapsedRealtime) ostatniej aktualizacji QNH; 0 = nigdy. */
+    @Volatile var updatedAt: Long = 0L
+        private set
+    /** Fałsz, gdy ostatnie zapytanie sieciowe nie powiodło się. */
+    @Volatile var netOk: Boolean = true
+        private set
+
+    val known get() = source != NO_DATA
+    val ageMin: Float
+        get() = if (updatedAt == 0L) 0f else (SystemClock.elapsedRealtime() - updatedAt) / 60_000f
+
+    companion object {
+        const val NO_DATA = "NO DATA"
+    }
 
     private val exec = Executors.newSingleThreadExecutor()
     @Volatile private var busy = false
@@ -45,6 +59,7 @@ class QnhProvider {
         if (q in 900.0..1100.0) {
             qnh = if (source == "GPS+BARO") qnh * 0.98f + q.toFloat() * 0.02f else q.toFloat()
             source = "GPS+BARO"
+            updatedAt = SystemClock.elapsedRealtime()
         }
     }
 
@@ -60,8 +75,11 @@ class QnhProvider {
                     qnh = r.first
                     source = r.second
                     fromNetwork = true
+                    updatedAt = SystemClock.elapsedRealtime()
                 }
+                netOk = r != null
             } catch (_: Exception) {
+                netOk = false
             } finally {
                 busy = false
             }

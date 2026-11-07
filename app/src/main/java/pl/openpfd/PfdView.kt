@@ -10,6 +10,9 @@ import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import pl.openpfd.render.Col
+import pl.openpfd.render.Pen
+import pl.openpfd.render.degradations
 import pl.openpfd.render.AirbusPfd
 import pl.openpfd.render.AirbusVariant
 import pl.openpfd.render.AtrPfd
@@ -27,25 +30,19 @@ import kotlin.math.roundToInt
  */
 @SuppressLint("ViewConstructor")
 class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
-    companion object {
-        const val KOMUNIKACYJNE = "Samoloty komunikacyjne"
-        const val OGOLNE = "Lotnictwo ogólne"
-        const val WIRNIKOWE = "Śmigłowce"
-        const val SZYBOWCE = "Szybowce"
-    }
-
+    /** Przyrząd: nazwa, grupa i opis jako zasoby tekstowe (PL/EN). */
     enum class Style(
-        val label: String, val alerts: AlertProfile, val group: String, val desc: String,
+        val label: Int, val alerts: AlertProfile, val group: Int, val desc: Int,
     ) {
-        AIRBUS("A320", AlertProfile(350f, 115f, false), KOMUNIKACYJNE, "Airbus · okrągły horyzont"),
-        ATR("ATR 72", AlertProfile(250f, 95f, false), KOMUNIKACYJNE, "Thales · róża kursowa"),
-        BOEING("737", AlertProfile(340f, 115f, false), KOMUNIKACYJNE, "Boeing CDS · łuk kursu"),
-        B787("787", AlertProfile(350f, 110f, false), KOMUNIKACYJNE, "Dreamliner · pełny horyzont"),
-        EMBRAER("E190", AlertProfile(320f, 105f, false), KOMUNIKACYJNE, "Primus Epic · pola danych"),
-        GARMIN("G1000", AlertProfile(163f, 48f, false), OGOLNE, "Garmin · teren 3D i HSI"),
-        CESSNA("C172", AlertProfile(163f, 48f, false), OGOLNE, "Analogowy six-pack"),
-        HELI("R44", AlertProfile(130f, 0f, false), WIRNIKOWE, "Zegary z radiowysokością"),
-        GLIDER("Szybowiec", AlertProfile(151f, 38f, true), SZYBOWCE, "Wariometr TE · km/h"),
+        AIRBUS(R.string.st_a320, AlertProfile(350f, 115f, false), R.string.group_airliners, R.string.desc_airbus),
+        ATR(R.string.st_atr, AlertProfile(250f, 95f, false), R.string.group_airliners, R.string.desc_atr),
+        BOEING(R.string.st_737, AlertProfile(340f, 115f, false), R.string.group_airliners, R.string.desc_boeing),
+        B787(R.string.st_787, AlertProfile(350f, 110f, false), R.string.group_airliners, R.string.desc_787),
+        EMBRAER(R.string.st_e190, AlertProfile(320f, 105f, false), R.string.group_airliners, R.string.desc_e190),
+        GARMIN(R.string.st_g1000, AlertProfile(163f, 48f, false), R.string.group_ga, R.string.desc_garmin),
+        CESSNA(R.string.st_c172, AlertProfile(163f, 48f, false), R.string.group_ga, R.string.desc_cessna),
+        HELI(R.string.st_r44, AlertProfile(130f, 0f, false), R.string.group_heli, R.string.desc_heli),
+        GLIDER(R.string.st_glider, AlertProfile(151f, 38f, true), R.string.group_gliders, R.string.desc_glider),
     }
 
     var style = Style.AIRBUS
@@ -121,6 +118,7 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
         val r = renderer
         if (r == null) {
             panel.draw(canvas, d, width.toFloat(), height.toFloat())
+            drawDegradations(canvas, d, width - 10f * dp, 10f * dp, rightAlign = true)
         } else {
             scale = min(width / r.vw, height / r.vh)
             ox = (width - r.vw * scale) / 2f
@@ -132,13 +130,45 @@ class PfdView(ctx: Context, private val hub: SensorHub) : View(ctx) {
             r.draw(canvas, d)
             canvas.restore()
             drawStatus(canvas, d)
+            val side = r.vw * scale
+            if (ox > 90f * dp) drawDegradations(canvas, d, 12f * dp, oy + 8f * dp, rightAlign = false)
+            else if (oy > 30f * dp) drawDegradations(canvas, d, ox + 8f * dp, oy + r.vh * scale + 8f * dp, rightAlign = false, row = true)
+            else drawDegradations(canvas, d, ox + side - 8f * dp, oy + 8f * dp, rightAlign = true)
         }
         postInvalidateOnAnimation()
     }
 
+    private val flagPen = Pen()
+
+    /**
+     * Flagi jakości danych (NO GPS, GPS ALT, NO QNH, NO NET…) – wspólne dla wszystkich przyrządów.
+     * Rysowane w kolumnie (margines boczny) albo w rzędzie (margines pod kwadratem).
+     */
+    private fun drawDegradations(
+        c: Canvas, d: FlightData, x: Float, y: Float, rightAlign: Boolean, row: Boolean = false,
+    ) {
+        val list = degradations(d)
+        if (list.isEmpty()) return
+        val size = 12f * dp
+        val gap = size * 1.9f
+        var cx = x
+        var cy = y + size * 0.7f
+        for (f in list) {
+            val w = flagPen.width(f.text, size) + size * 0.56f
+            if (row && cx + w > width) {
+                cx = x
+                cy += gap
+            }
+            val align = if (rightAlign) Paint.Align.RIGHT else Paint.Align.LEFT
+            val tx = if (rightAlign) cx - size * 0.28f else cx + size * 0.28f
+            flagPen.flag(c, f.text, tx, cy, size, if (f.color == Col.WHITE) Color.WHITE else f.color, align)
+            if (row) cx += w + size * 0.5f else cy += gap
+        }
+    }
+
     /** Krótki stan czujników na marginesie poza kwadratem (gdy jest miejsce). */
     private fun drawStatus(c: Canvas, d: FlightData) {
-        val gps = if (d.gpsFix) "GPS ±${d.gpsAccuracy.roundToInt()} m · ${d.sats} SAT" else "GPS · szukanie…"
+        val gps = if (d.gpsFix) "GPS ±${d.gpsAccuracy.roundToInt()} m · ${d.sats} SAT" else "GPS · ACQ…"
         val qnh = "QNH ${d.qnh.roundToInt()} · ${d.qnhSource}"
         val lh = status.textSize * 1.4f
         if (ox > 140f * dp || oy > lh * 2 + 12f * dp) {

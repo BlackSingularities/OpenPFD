@@ -75,7 +75,7 @@ class B787Pfd : PfdRenderer {
         if (!d.attValid) {
             p.rect(c, 0f, ADI_T, 900f, ADI_B, Col.BLACK)
             p.frame(c, CX - 56, CY - 30, CX + 56, CY + 30, Col.AMBER, 3f)
-            p.text(c, "ATT", CX, CY, 44f, Col.AMBER)
+            p.flag(c, "ATT", CX, CY, 44f, Col.AMBER)
             drawAircraft(c)
             return
         }
@@ -129,26 +129,11 @@ class B787Pfd : PfdRenderer {
     }
 
     /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
-    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
-        if (d.pitch <= 30f && d.pitch >= -20f) return
-        val dir = if (d.pitch > 0f) 1f else -1f
-        c.save()
-        c.clipPath(adiClip)
-        c.rotate(-d.roll, CX, CY)
-        for (k in 1..2) {
-            val y = CY + dir * (70f + k * 62f)
-            p.line(c, CX - 66, y + dir * 42, CX, y, Col.RED, 6f)
-            p.line(c, CX, y, CX + 66, y + dir * 42, Col.RED, 6f)
-        }
-        c.restore()
-    }
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) =
+        p.pitchChevrons(c, adiClip, CX, CY, d, 70f, 62f, 66f, 42f)
 
-    private fun bird(c: Canvas, x: Float, y: Float, color: Int) {
-        p.circle(c, x, y, 13f, color, 3.5f)
-        p.line(c, x - 13, y, x - 38, y, color, 3.5f)
-        p.line(c, x + 13, y, x + 38, y, color, 3.5f)
-        p.line(c, x, y - 13, x, y - 28, color, 3.5f)
-    }
+    private fun bird(c: Canvas, x: Float, y: Float, color: Int) =
+        p.bird(c, x, y, color, 13f, 38f, 28f, 3.5f)
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
         c.save()
@@ -194,7 +179,7 @@ class B787Pfd : PfdRenderer {
         val b = 560f
         val k = 5.2f
         if (!d.speedValid) {
-            p.text(c, "SPD", (l + r) / 2, CY, 44f, Col.AMBER)
+            p.flag(c, "SPD", (l + r) / 2, CY, 44f, Col.AMBER)
             return
         }
         val s = d.speedKt
@@ -252,7 +237,7 @@ class B787Pfd : PfdRenderer {
         val b = 560f
         val k = 0.52f
         if (!d.altValid) {
-            p.text(c, "ALT", (l + r) / 2, CY, 44f, Col.AMBER)
+            p.flag(c, "ALT", (l + r) / 2, CY, 44f, Col.AMBER)
             return
         }
         val a = d.altFt
@@ -381,7 +366,7 @@ class B787Pfd : PfdRenderer {
     // ---------------------------------------------------------------- łukowa róża
     private fun drawArc(c: Canvas, d: FlightData) {
         if (!d.attValid) {
-            p.text(c, "HDG", RCX, RCY - RAD / 2, 44f, Col.AMBER)
+            p.flag(c, "HDG", RCX, RCY - RAD / 2, 44f, Col.AMBER)
             return
         }
         val h = d.heading
@@ -432,7 +417,7 @@ class B787Pfd : PfdRenderer {
             p.text(c, String.format(Locale.US, "TRK %03d°", mod(d.track.roundToInt(), 360)),
                 24f, 880f, 28f, MAGENTA, Paint.Align.LEFT)
         }
-        p.text(c, if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m" else "GPS szukanie…",
+        p.text(c, if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m" else "GPS ACQ…",
             876f, 880f, 26f, GREEN, Paint.Align.RIGHT)
     }
 }

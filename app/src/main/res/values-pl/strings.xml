@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="st_glider">Szybowiec</string>
+
+    <string name="group_airliners">Samoloty komunikacyjne</string>
+    <string name="group_ga">Lotnictwo ogólne</string>
+    <string name="group_heli">Śmigłowce</string>
+    <string name="group_gliders">Szybowce</string>
+
+    <string name="desc_airbus">Airbus · okrągły horyzont</string>
+    <string name="desc_atr">Thales · róża kursowa</string>
+    <string name="desc_boeing">Boeing CDS · łuk kursu</string>
+    <string name="desc_787">Dreamliner · pełny horyzont</string>
+    <string name="desc_e190">Primus Epic · pola danych</string>
+    <string name="desc_garmin">Garmin · teren 3D i HSI</string>
+    <string name="desc_cessna">Analogowy six-pack</string>
+    <string name="desc_heli">Zegary z radiowysokością</string>
+    <string name="desc_glider">Wariometr TE · km/h</string>
+
+    <string name="toast_calibrated">Skalibrowano poziom</string>
+    <string name="toast_no_location">Bez lokalizacji nie będzie prędkości, toru lotu ani QNH</string>
+    <string name="picker_title">Wybierz przyrząd</string>
+    <string name="settings_title">Ustawienia</string>
+    <string name="sec_instrument">Przyrząd</string>
+    <string name="sec_actions">Czynności</string>
+    <string name="set_baro">Nastawa wysokościomierza</string>
+    <string name="set_units">Jednostki ciśnienia</string>
+    <string name="set_fpv">Wektor toru lotu (FPV)</string>
+    <string name="set_alerts">Ostrzeżenia głosowe i dźwiękowe</string>
+    <string name="set_vario">Wariometr dźwiękowy (szybowiec)</string>
+    <string name="on">Wł.</string>
+    <string name="off">Wył.</string>
+    <string name="act_calibrate">Kalibruj poziom</string>
+    <string name="act_reset_cal">Resetuj kalibrację</string>
+    <string name="act_refresh_qnh">Odśwież QNH</string>
+    <string name="act_check_updates">Sprawdź aktualizacje</string>
+    <string name="act_test_alerts">Test ostrzeżeń</string>
+    <string name="cd_settings">Ustawienia</string>
+
+    <string name="info_gps_fix">GPS      ±%1$d m · %2$d SAT</string>
+    <string name="info_gps_none">GPS      szukanie sygnału</string>
+    <string name="info_qnh">QNH      %1$d hPa · %2$s</string>
+    <string name="info_qnh_age">QNH      %1$d hPa · %2$s · %3$d min temu</string>
+    <string name="info_alt">Wysok.   %s</string>
+    <string name="alt_none">brak</string>
+    <string name="alt_baro">barometr</string>
+    <string name="alt_gps">GPS (brak barometru)</string>
+    <string name="info_hdg">Kurs     %s</string>
+    <string name="hdg_mag">magnetyczny</string>
+    <string name="hdg_rel">względny (brak magnetometru)</string>
+    <string name="info_terrain">Teren    %s</string>
+    <string name="terr_none">brak (wymaga sieci i GPS)</string>
+    <string name="terr_ra">RA %1$d ft · teren %2$d ft</string>
+    <string name="terr_loaded">pobrany</string>
+    <string name="info_wind">Wiatr    %s</string>
+    <string name="wind_val">%1$d°/%2$d kt (prognoza)</string>
+    <string name="wind_none">brak</string>
+    <string name="info_data">Dane     %s</string>
+    <string name="data_ok">wszystkie źródła OK</string>
+    <string name="info_version">Wersja   %s</string>
+    <string name="help">Telefon trzymaj pionowo, ekranem do siebie. Przytrzymaj ekran, by wypoziomować. Dotknij okna ciśnienia, by przełączyć QNH/STD. Flagi przy krawędzi ekranu (NO GPS, GPS ALT, NO QNH, NO NET…) oznaczają brak lub nieaktualne źródło danych. Nie do nawigacji lotniczej.</string>
+    <string name="credits">Pomysł i wykonanie: Adam Rędzikowski · redzikowski.com</string>
+    <string name="buy_coffee">☕  Postaw kawę</string>
+
+    <string name="update_available">Dostępna aktualizacja %s</string>
+    <string name="install">Zainstaluj</string>
+    <string name="up_to_date">Masz najnowszą wersję (v%s)</string>
+    <string name="update_check_failed">Nie udało się sprawdzić aktualizacji: %s</string>
+    <string name="allow_install">Zezwól OpenPFD na instalowanie aplikacji i spróbuj ponownie</string>
+    <string name="downloading">Pobieranie aktualizacji…</string>
+    <string name="update_error">Błąd aktualizacji: %s</string>
+    <string name="install_failed">Instalacja nieudana: %s</string>
+</resources>

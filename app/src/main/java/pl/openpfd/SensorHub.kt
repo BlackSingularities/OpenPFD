@@ -354,6 +354,9 @@ class SensorHub(ctx: Context) : SensorEventListener, LocationListener {
             drift = if (gpsOk && hasBearing) angDiff(wrap360(trackTrue - decl), rawHdg) else 0f,
             gLoad = gF,
             magVar = decl,
+            qnhKnown = qnhProvider.known,
+            qnhAgeMin = qnhProvider.ageMin,
+            netOk = qnhProvider.netOk,
         )
     }
 

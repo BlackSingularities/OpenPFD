@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">OpenPFD</string>
+
+    <string name="st_a320" translatable="false">A320</string>
+    <string name="st_atr" translatable="false">ATR 72</string>
+    <string name="st_737" translatable="false">737</string>
+    <string name="st_787" translatable="false">787</string>
+    <string name="st_e190" translatable="false">E190</string>
+    <string name="st_g1000" translatable="false">G1000</string>
+    <string name="st_c172" translatable="false">C172</string>
+    <string name="st_r44" translatable="false">R44</string>
+    <string name="st_glider">Glider</string>
+
+    <string name="group_airliners">Airliners</string>
+    <string name="group_ga">General aviation</string>
+    <string name="group_heli">Helicopters</string>
+    <string name="group_gliders">Gliders</string>
+
+    <string name="desc_airbus">Airbus · round horizon</string>
+    <string name="desc_atr">Thales · compass rose</string>
+    <string name="desc_boeing">Boeing CDS · heading arc</string>
+    <string name="desc_787">Dreamliner · full-width horizon</string>
+    <string name="desc_e190">Primus Epic · data fields</string>
+    <string name="desc_garmin">Garmin · 3D terrain and HSI</string>
+    <string name="desc_cessna">Analog six-pack</string>
+    <string name="desc_heli">Gauges with radio altimeter</string>
+    <string name="desc_glider">TE variometer · km/h</string>
+
+    <string name="toast_calibrated">Level calibrated</string>
+    <string name="toast_no_location">Without location there will be no speed, flight path or QNH</string>
+    <string name="picker_title">Choose instrument</string>
+    <string name="settings_title">Settings</string>
+    <string name="sec_instrument">Instrument</string>
+    <string name="sec_actions">Actions</string>
+    <string name="set_baro">Altimeter setting</string>
+    <string name="opt_qnh" translatable="false">QNH</string>
+    <string name="opt_std" translatable="false">STD 1013</string>
+    <string name="set_units">Pressure units</string>
+    <string name="set_fpv">Flight path vector (FPV)</string>
+    <string name="set_alerts">Voice and audio alerts</string>
+    <string name="set_vario">Audio variometer (glider)</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="act_calibrate">Calibrate level</string>
+    <string name="act_reset_cal">Reset calibration</string>
+    <string name="act_refresh_qnh">Refresh QNH</string>
+    <string name="act_check_updates">Check for updates</string>
+    <string name="act_test_alerts">Test alerts</string>
+    <string name="cd_settings">Settings</string>
+
+    <string name="info_gps_fix">GPS      ±%1$d m · %2$d SAT</string>
+    <string name="info_gps_none">GPS      searching for signal</string>
+    <string name="info_qnh">QNH      %1$d hPa · %2$s</string>
+    <string name="info_qnh_age">QNH      %1$d hPa · %2$s · %3$d min old</string>
+    <string name="info_alt">Altitude %s</string>
+    <string name="alt_none">none</string>
+    <string name="alt_baro">barometer</string>
+    <string name="alt_gps">GPS (no barometer)</string>
+    <string name="info_hdg">Heading  %s</string>
+    <string name="hdg_mag">magnetic</string>
+    <string name="hdg_rel">relative (no magnetometer)</string>
+    <string name="info_terrain">Terrain  %s</string>
+    <string name="terr_none">none (needs network and GPS)</string>
+    <string name="terr_ra">RA %1$d ft · terrain %2$d ft</string>
+    <string name="terr_loaded">loaded</string>
+    <string name="info_wind">Wind     %s</string>
+    <string name="wind_val">%1$d°/%2$d kt (forecast)</string>
+    <string name="wind_none">none</string>
+    <string name="info_data">Data     %s</string>
+    <string name="data_ok">all sources OK</string>
+    <string name="info_version">Version  %s</string>
+    <string name="help">Hold the phone upright, screen facing you. Long-press the screen to level. Tap the pressure window to toggle QNH/STD. Flags at the edge of the screen (NO GPS, GPS ALT, NO QNH, NO NET…) mean a data source is missing or stale. Not for air navigation.</string>
+    <string name="credits">Idea and design: Adam Rędzikowski · redzikowski.com</string>
+    <string name="buy_coffee">☕  Buy me a coffee</string>
+
+    <string name="update_available">Update available %s</string>
+    <string name="install">Install</string>
+    <string name="up_to_date">You have the latest version (v%s)</string>
+    <string name="update_check_failed">Could not check for updates: %s</string>
+    <string name="allow_install">Allow OpenPFD to install apps and try again</string>
+    <string name="downloading">Downloading update…</string>
+    <string name="update_error">Update error: %s</string>
+    <string name="install_failed">Installation failed: %s</string>
+</resources>

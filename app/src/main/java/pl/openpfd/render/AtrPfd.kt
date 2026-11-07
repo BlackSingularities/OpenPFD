@@ -88,7 +88,7 @@ class AtrPfd : PfdRenderer {
     private fun drawAttitude(c: Canvas, d: FlightData) {
         if (!d.attValid) {
             p.rect(c, ADI_L, ADI_T, ADI_R, ADI_B, Col.BLACK)
-            p.text(c, "ATT", CX, CY, 56f, Col.RED)
+            p.flag(c, "ATT", CX, CY, 56f, Col.RED)
             drawAircraft(c)
             return
         }
@@ -154,26 +154,11 @@ class AtrPfd : PfdRenderer {
     }
 
     /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
-    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
-        if (d.pitch <= 30f && d.pitch >= -20f) return
-        val dir = if (d.pitch > 0f) 1f else -1f
-        c.save()
-        c.clipPath(adiClip)
-        c.rotate(-d.roll, CX, CY)
-        for (k in 1..2) {
-            val y = CY + dir * (70f + k * 62f)
-            p.line(c, CX - 66, y + dir * 42, CX, y, Col.RED, 6f)
-            p.line(c, CX, y, CX + 66, y + dir * 42, Col.RED, 6f)
-        }
-        c.restore()
-    }
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) =
+        p.pitchChevrons(c, adiClip, CX, CY, d, 70f, 62f, 66f, 42f)
 
-    private fun bird(c: Canvas, x: Float, y: Float, color: Int) {
-        p.circle(c, x, y, 13f, color, 4f)
-        p.line(c, x - 13, y, x - 40, y, color, 4f)
-        p.line(c, x + 13, y, x + 40, y, color, 4f)
-        p.line(c, x, y - 13, x, y - 28, color, 4f)
-    }
+    private fun bird(c: Canvas, x: Float, y: Float, color: Int) =
+        p.bird(c, x, y, color, 13f, 40f, 28f, 4f)
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
         c.save()
@@ -221,7 +206,7 @@ class AtrPfd : PfdRenderer {
         val b = 541f
         val k = 4.3f
         if (!d.speedValid) {
-            p.text(c, "SPD", (l + r) / 2, CY, 44f, Col.RED)
+            p.flag(c, "SPD", (l + r) / 2, CY, 44f, Col.RED)
             return
         }
         val s = d.speedKt
@@ -279,7 +264,7 @@ class AtrPfd : PfdRenderer {
         val b = 541f
         val k = 0.43f
         if (!d.altValid) {
-            p.text(c, "ALT", (l + r) / 2, CY, 44f, Col.RED)
+            p.flag(c, "ALT", (l + r) / 2, CY, 44f, Col.RED)
             return
         }
         val a = d.altFt
@@ -345,7 +330,7 @@ class AtrPfd : PfdRenderer {
             }
         }
         if (!d.altValid) {
-            p.text(c, "V/S", (l + r) / 2, CY - 70, 28f, Col.RED)
+            p.flag(c, "V/S", (l + r) / 2, CY - 70, 28f, Col.RED)
             return
         }
         val vs = d.vsFpm
@@ -382,7 +367,7 @@ class AtrPfd : PfdRenderer {
     private fun drawRose(c: Canvas, d: FlightData) {
         if (!d.attValid) {
             p.circle(c, RX, RY, RR, GREY, 3f)
-            p.text(c, "HDG", RX, RY, 44f, Col.RED)
+            p.flag(c, "HDG", RX, RY, 44f, Col.RED)
             return
         }
         val h = d.heading
@@ -454,7 +439,7 @@ class AtrPfd : PfdRenderer {
         p.text(c, if (d.raValid) "TERR" else "TERM", 24f, 868f, 28f, GREEN, Paint.Align.LEFT)
         p.frame(c, 18f, 928f, 236f, 990f, GREY, 2.5f)
         p.text(c, "GPS", 32f, 948f, 24f, GREEN, Paint.Align.LEFT)
-        p.text(c, if (d.gpsFix) "±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "szukanie…",
+        p.text(c, if (d.gpsFix) "±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "ACQ…",
             32f, 974f, 24f, GREEN, Paint.Align.LEFT)
     }
 }

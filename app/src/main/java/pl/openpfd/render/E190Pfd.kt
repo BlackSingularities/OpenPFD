@@ -83,7 +83,7 @@ class E190Pfd : PfdRenderer {
         if (!d.attValid) {
             p.rect(c, ADI_L, ADI_T, ADI_R, ADI_B, Col.BLACK)
             p.frame(c, ADI_L, ADI_T, ADI_R, ADI_B, Col.AMBER, 3f)
-            p.text(c, "ATT", CX, CY, 48f, Col.AMBER)
+            p.flag(c, "ATT", CX, CY, 48f, Col.AMBER)
             drawAircraft(c)
             return
         }
@@ -143,19 +143,8 @@ class E190Pfd : PfdRenderer {
     }
 
     /** Czerwone chevrony wskazujące najkrótszą drogę do horyzontu. */
-    private fun drawPitchChevrons(c: Canvas, d: FlightData) {
-        if (d.pitch <= 30f && d.pitch >= -20f) return
-        val dir = if (d.pitch > 0f) 1f else -1f
-        c.save()
-        c.clipPath(adiClip)
-        c.rotate(-d.roll, CX, CY)
-        for (k in 1..2) {
-            val y = CY + dir * (70f + k * 62f)
-            p.line(c, CX - 66, y + dir * 42, CX, y, Col.RED, 6f)
-            p.line(c, CX, y, CX + 66, y + dir * 42, Col.RED, 6f)
-        }
-        c.restore()
-    }
+    private fun drawPitchChevrons(c: Canvas, d: FlightData) =
+        p.pitchChevrons(c, adiClip, CX, CY, d, 70f, 62f, 66f, 42f)
 
     private fun drawRollScale(c: Canvas, d: FlightData) {
         c.save()
@@ -199,7 +188,7 @@ class E190Pfd : PfdRenderer {
         val b = 506f
         val k = 4.6f
         if (!d.speedValid) {
-            p.text(c, "SPD", (l + r) / 2, CY, 42f, Col.AMBER)
+            p.flag(c, "SPD", (l + r) / 2, CY, 42f, Col.AMBER)
             return
         }
         val s = d.speedKt
@@ -259,7 +248,7 @@ class E190Pfd : PfdRenderer {
         val b = 506f
         val k = 0.42f
         if (!d.altValid) {
-            p.text(c, "ALT", (l + r) / 2, CY, 42f, Col.AMBER)
+            p.flag(c, "ALT", (l + r) / 2, CY, 42f, Col.AMBER)
             return
         }
         val a = d.altFt
@@ -361,7 +350,7 @@ class E190Pfd : PfdRenderer {
             p.text(c, "SAT", 690f, y + 76, 26f, CYAN, Paint.Align.LEFT)
             p.text(c, d.oatC.roundToInt().toString() + "°C", 690f, y + 110, 28f, GREEN, Paint.Align.LEFT)
         }
-        p.text(c, if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "GPS szukanie…",
+        p.text(c, if (d.gpsFix) "GPS ±" + d.gpsAccuracy.roundToInt() + " m · " + d.sats + " SAT" else "GPS ACQ…",
             24f, 974f, 26f, GREEN, Paint.Align.LEFT)
     }
 
@@ -369,7 +358,7 @@ class E190Pfd : PfdRenderer {
     private fun drawRose(c: Canvas, d: FlightData) {
         if (!d.attValid) {
             p.circle(c, RX, RY, RR, GREY, 3f)
-            p.text(c, "HDG", RX, RY, 42f, Col.AMBER)
+            p.flag(c, "HDG", RX, RY, 42f, Col.AMBER)
             return
         }
         val h = d.heading

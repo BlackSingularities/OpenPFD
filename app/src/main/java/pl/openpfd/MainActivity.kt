@@ -23,6 +23,7 @@ import android.widget.TextView
 import android.widget.Toast
 import pl.openpfd.Ui.dp
 import pl.openpfd.Ui.setActive
+import pl.openpfd.render.degradations
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
@@ -68,7 +69,7 @@ class MainActivity : Activity() {
         pfd.style = PfdView.Style.entries.firstOrNull { it.name == prefs.getString("style", "AIRBUS") }
             ?: PfdView.Style.AIRBUS
         pfd.onTapEmpty = { if (topBar.visibility == View.VISIBLE) hideChrome.run() else showChrome() }
-        pfd.onCalibrated = { Toast.makeText(this, "Skalibrowano poziom", Toast.LENGTH_SHORT).show() }
+        pfd.onCalibrated = { Toast.makeText(this, R.string.toast_calibrated, Toast.LENGTH_SHORT).show() }
 
         root = FrameLayout(this)
         root.setBackgroundColor(Color.BLACK)
@@ -126,7 +127,7 @@ class MainActivity : Activity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (grantResults.any { it == PackageManager.PERMISSION_GRANTED }) hub.startLocation()
-        else Toast.makeText(this, "Bez lokalizacji nie będzie prędkości, toru lotu ani QNH", Toast.LENGTH_LONG).show()
+        else Toast.makeText(this, R.string.toast_no_location, Toast.LENGTH_LONG).show()
     }
 
     private fun currentRotation(): Int =
@@ -160,7 +161,7 @@ class MainActivity : Activity() {
         }
         styleButton = Ui.pill(this, styleButtonText(), true) { openPicker() }
         topBar.addView(styleButton, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(4f) })
-        topBar.addView(Ui.pill(this, "⚙") { openSheet() })
+        topBar.addView(Ui.pill(this, "⚙") { openSheet() }.apply { contentDescription = getString(R.string.cd_settings) })
         root.addView(topBar, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(12f)
             leftMargin = dp(8f)
@@ -176,7 +177,7 @@ class MainActivity : Activity() {
         handler.postDelayed(hideChrome, 4000L)
     }
 
-    private fun styleButtonText() = "✈  " + pfd.style.label + "  ▾"
+    private fun styleButtonText() = "✈  " + getString(pfd.style.label) + "  ▾"
 
     private fun setStyle(s: PfdView.Style) {
         pfd.style = s
@@ -194,11 +195,11 @@ class MainActivity : Activity() {
         handler.removeCallbacks(hideChrome)
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         PfdView.Style.entries.groupBy { it.group }.forEach { (group, items) ->
-            content.addView(Ui.label(this, group).apply { setPadding(0, dp(14f), 0, dp(8f)) })
+            content.addView(Ui.label(this, getString(group)).apply { setPadding(0, dp(14f), 0, dp(8f)) })
             items.chunked(2).forEach { pair ->
                 val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                 pair.forEach { s ->
-                    row.addView(Ui.card(this, s.label, s.desc, s == pfd.style) {
+                    row.addView(Ui.card(this, getString(s.label), getString(s.desc), s == pfd.style) {
                         setStyle(s)
                         closeSheet()
                     }, LinearLayout.LayoutParams(0, -2, 1f).apply {
@@ -210,7 +211,7 @@ class MainActivity : Activity() {
                 content.addView(row)
             }
         }
-        showSheet("Wybierz przyrząd", content)
+        showSheet(getString(R.string.picker_title), content)
     }
 
     // ---------------------------------------------------------------- arkusz ustawień
@@ -256,38 +257,39 @@ class MainActivity : Activity() {
         if (sheet != null) return
         handler.removeCallbacks(hideChrome)
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content.addView(Ui.label(this, "Przyrząd").apply { setPadding(0, dp(10f), 0, dp(8f)) })
-        content.addView(Ui.card(this, pfd.style.label, pfd.style.desc, false) {
+        val onOff = listOf(getString(R.string.on), getString(R.string.off))
+        content.addView(Ui.label(this, getString(R.string.sec_instrument)).apply { setPadding(0, dp(10f), 0, dp(8f)) })
+        content.addView(Ui.card(this, getString(pfd.style.label), getString(pfd.style.desc), false) {
             closeSheet()
             styleButton.post { openPicker() }
         })
-        content.addView(Ui.segmented(this, "Nastawa wysokościomierza", listOf("QNH", "STD 1013"),
+        content.addView(Ui.segmented(this, getString(R.string.set_baro), listOf(getString(R.string.opt_qnh), getString(R.string.opt_std)),
             if (hub.std) 1 else 0) { hub.std = it == 1 })
-        content.addView(Ui.segmented(this, "Jednostki ciśnienia", listOf("hPa", "inHg"),
+        content.addView(Ui.segmented(this, getString(R.string.set_units), listOf("hPa", "inHg"),
             if (hub.inHg) 1 else 0) { hub.inHg = it == 1 })
-        content.addView(Ui.segmented(this, "Wektor toru lotu (FPV)", listOf("Wł.", "Wył."),
+        content.addView(Ui.segmented(this, getString(R.string.set_fpv), onOff,
             if (hub.fpv) 0 else 1) { hub.fpv = it == 0 })
-        content.addView(Ui.segmented(this, "Ostrzeżenia głosowe i dźwiękowe", listOf("Wł.", "Wył."),
+        content.addView(Ui.segmented(this, getString(R.string.set_alerts), onOff,
             if (alerts.voiceOn) 0 else 1) {
             alerts.voiceOn = it == 0
             getSharedPreferences("openpfd", MODE_PRIVATE).edit().putBoolean("alerts", alerts.voiceOn).apply()
         })
-        content.addView(Ui.segmented(this, "Wariometr dźwiękowy (szybowiec)", listOf("Wł.", "Wył."),
+        content.addView(Ui.segmented(this, getString(R.string.set_vario), onOff,
             if (alerts.varioOn) 0 else 1) {
             alerts.varioOn = it == 0
             getSharedPreferences("openpfd", MODE_PRIVATE).edit().putBoolean("vario", alerts.varioOn).apply()
         })
 
-        content.addView(Ui.label(this, "Czynności").apply { setPadding(0, dp(14f), 0, dp(8f)) })
+        content.addView(Ui.label(this, getString(R.string.sec_actions)).apply { setPadding(0, dp(14f), 0, dp(8f)) })
         val actions = listOf<Pair<String, () -> Unit>>(
-            "Kalibruj poziom" to {
+            getString(R.string.act_calibrate) to {
                 hub.calibrate()
-                Toast.makeText(this, "Skalibrowano poziom", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.toast_calibrated, Toast.LENGTH_SHORT).show()
             },
-            "Resetuj kalibrację" to { hub.resetCalibration() },
-            "Odśwież QNH" to { hub.qnhProvider.refresh() },
-            "Sprawdź aktualizacje" to { checkUpdates(true) },
-            "Test ostrzeżeń" to { alerts.test() },
+            getString(R.string.act_reset_cal) to { hub.resetCalibration() },
+            getString(R.string.act_refresh_qnh) to { hub.qnhProvider.refresh() },
+            getString(R.string.act_check_updates) to { checkUpdates(true) },
+            getString(R.string.act_test_alerts) to { alerts.test() },
         )
         actions.chunked(2).forEach { pair ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -302,27 +304,36 @@ class MainActivity : Activity() {
 
         val d = hub.snapshot()
         val info = buildString {
-            append(if (d.gpsFix) "GPS      ±${d.gpsAccuracy.roundToInt()} m · ${d.sats} SAT\n" else "GPS      szukanie sygnału\n")
-            append("QNH      ${d.qnh.roundToInt()} hPa · ${d.qnhSource}\n")
-            append("Wysok.   " + (if (!d.altValid) "brak" else if (d.altFromBaro) "barometr" else "GPS (brak barometru)") + "\n")
-            append("Kurs     " + (if (d.headingMagnetic) "magnetyczny" else "względny (brak magnetometru)") + "\n")
-            append("Teren    " + when {
-                d.terrain == null -> "brak (wymaga sieci i GPS)"
-                d.raValid -> "RA ${d.raFt.roundToInt()} ft · teren ${d.terrainFt.roundToInt()} ft"
-                else -> "pobrany"
-            } + "\n")
-            append("Wiatr    " + (if (d.windValid) "${d.windDir.roundToInt()}°/${d.windKt.roundToInt()} kt (prognoza)" else "brak") + "\n")
-            append("Wersja   ${BuildConfig.VERSION_NAME}")
+            appendLine(if (d.gpsFix) getString(R.string.info_gps_fix, d.gpsAccuracy.roundToInt(), d.sats)
+                else getString(R.string.info_gps_none))
+            appendLine(if (d.qnhKnown && d.qnhAgeMin >= 1f)
+                getString(R.string.info_qnh_age, d.qnh.roundToInt(), d.qnhSource, d.qnhAgeMin.roundToInt())
+                else getString(R.string.info_qnh, d.qnh.roundToInt(), d.qnhSource))
+            appendLine(getString(R.string.info_alt, getString(when {
+                !d.altValid -> R.string.alt_none
+                d.altFromBaro -> R.string.alt_baro
+                else -> R.string.alt_gps
+            })))
+            appendLine(getString(R.string.info_hdg, getString(if (d.headingMagnetic) R.string.hdg_mag else R.string.hdg_rel)))
+            appendLine(getString(R.string.info_terrain, when {
+                d.terrain == null -> getString(R.string.terr_none)
+                d.raValid -> getString(R.string.terr_ra, d.raFt.roundToInt(), d.terrainFt.roundToInt())
+                else -> getString(R.string.terr_loaded)
+            }))
+            appendLine(getString(R.string.info_wind,
+                if (d.windValid) getString(R.string.wind_val, d.windDir.roundToInt(), d.windKt.roundToInt())
+                else getString(R.string.wind_none)))
+            val flags = degradations(d)
+            appendLine(getString(R.string.info_data,
+                if (flags.isEmpty()) getString(R.string.data_ok) else flags.joinToString(" · ") { it.text }))
+            append(getString(R.string.info_version, BuildConfig.VERSION_NAME))
         }
         content.addView(Ui.label(this, info, 12f).apply {
             typeface = Typeface.MONOSPACE
             setPadding(0, dp(12f), 0, dp(4f))
         })
-        content.addView(Ui.label(this,
-            "Telefon trzymaj pionowo, ekranem do siebie. Przytrzymaj ekran, by wypoziomować. " +
-                "Dotknij okna ciśnienia, by przełączyć QNH/STD. Nie do nawigacji lotniczej.",
-            12f, Ui.TEXT_FAINT))
-        content.addView(Ui.label(this, "Pomysł i wykonanie: Adam Rędzikowski · redzikowski.com", 12f, Ui.TEXT_FAINT).apply {
+        content.addView(Ui.label(this, getString(R.string.help), 12f, Ui.TEXT_FAINT))
+        content.addView(Ui.label(this, getString(R.string.credits), 12f, Ui.TEXT_FAINT).apply {
             setPadding(0, dp(10f), 0, dp(8f))
             setOnClickListener { openUrl("https://redzikowski.com") }
         })
@@ -330,8 +341,8 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, dp(8f))
             setOnClickListener { openUrl("mailto:kontakt@redzikowski.com") }
         })
-        content.addView(Ui.pill(this, "☕  Postaw kawę") { openUrl("https://buycoffee.to/adamredzikowski") })
-        showSheet("Ustawienia", content)
+        content.addView(Ui.pill(this, getString(R.string.buy_coffee)) { openUrl("https://buycoffee.to/adamredzikowski") })
+        showSheet(getString(R.string.settings_title), content)
     }
 
     private fun openUrl(url: String) {
@@ -360,9 +371,9 @@ class MainActivity : Activity() {
             val p = dp(4f)
             setPadding(dp(16f), p, p, p)
         }
-        bar.addView(Ui.label(this, "Dostępna aktualizacja $tag", 14f, Color.WHITE),
+        bar.addView(Ui.label(this, getString(R.string.update_available, tag), 14f, Color.WHITE),
             LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10f) })
-        bar.addView(Ui.pill(this, "Zainstaluj", true) {
+        bar.addView(Ui.pill(this, getString(R.string.install), true) {
             root.removeView(bar)
             banner = null
             Updater.install(this, url)

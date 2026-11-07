@@ -47,12 +47,12 @@ object Updater {
                     if (code > BuildConfig.VERSION_CODE && url != null) {
                         onAvailable(tag, url)
                     } else if (manual) {
-                        Toast.makeText(act, "Masz najnowszą wersję (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(act, act.getString(R.string.up_to_date, BuildConfig.VERSION_NAME), Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 if (manual) act.runOnUiThread {
-                    Toast.makeText(act, "Nie udało się sprawdzić aktualizacji: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(act, act.getString(R.string.update_check_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             } finally {
                 running = false
@@ -62,13 +62,13 @@ object Updater {
 
     fun install(act: Activity, url: String) {
         if (!act.packageManager.canRequestPackageInstalls()) {
-            Toast.makeText(act, "Zezwól OpenPFD na instalowanie aplikacji i spróbuj ponownie", Toast.LENGTH_LONG).show()
+            Toast.makeText(act, act.getString(R.string.allow_install), Toast.LENGTH_LONG).show()
             act.startActivity(
                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + act.packageName))
             )
             return
         }
-        Toast.makeText(act, "Pobieranie aktualizacji…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(act, act.getString(R.string.downloading), Toast.LENGTH_SHORT).show()
         thread(name = "update-install") {
             try {
                 val installer = act.packageManager.packageInstaller
@@ -97,7 +97,7 @@ object Updater {
                 }
             } catch (e: Exception) {
                 act.runOnUiThread {
-                    Toast.makeText(act, "Błąd aktualizacji: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(act, act.getString(R.string.update_error, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         }
