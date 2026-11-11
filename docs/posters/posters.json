@@ -1,0 +1,23 @@
+{
+  "slug": "openpfd",
+  "name": "OpenPFD",
+  "label": "primary flight display z czujników telefonu",
+  "icon": "icon.png",
+  "url": "https://redzikowski.com/portfolio/openpfd",
+  "posters": [
+    {
+      "platform": "android",
+      "file": "android.png",
+      "title": "Kokpit zasilany *czujnikami telefonu*",
+      "lead": "Prędkość i kurs z GPS, położenie z żyroskopu, wysokość z barometru i QNH z najbliższego METAR-u – w stylu Airbusa, Boeinga albo G1000.",
+      "shots": [
+        { "src": "../screenshots/android/01-airbus.png", "caption": "Airbus A320" },
+        { "src": "../screenshots/android/02-g1000.png", "caption": "Garmin G1000" },
+        { "src": "../screenshots/android/03-787.png", "caption": "Boeing 787" },
+        { "src": "../screenshots/android/04-wybor.png", "caption": "Przyrządy" }
+      ],
+      "features": ["8 przyrządów do wyboru", "teren 3D w G1000", "QNH z METAR-u", "wysokość radiowa", "ostrzeżenia dźwiękowe", "śmigłowiec R44"],
+      "meta": "Android 8 lub nowszy · nie do nawigacji lotniczej"
+    }
+  ]
+}

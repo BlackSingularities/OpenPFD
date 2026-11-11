@@ -1,5 +1,13 @@
 # OpenPFD
 
+<!-- posters:start -->
+<p align="center">
+  <img src="docs/posters/android.png" alt="OpenPFD – Android" width="460">
+</p>
+
+<p align="center"><a href="https://redzikowski.com/portfolio/openpfd">redzikowski.com/portfolio/openpfd</a></p>
+<!-- posters:end -->
+
 <img src="artwork/app-icon.png" alt="OpenPFD" width="128" />
 
 Aplikacja na Androida wyświetlająca realistyczny **Primary Flight Display** (Airbus A320, Boeing 737, Garmin G1000 SVT) oraz analogowy panel **Cessny 172** na pełnym ekranie zasilany **prawdziwymi danymi** z czujników telefonu i GPS.
